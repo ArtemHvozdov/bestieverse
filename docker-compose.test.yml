@@ -1,0 +1,17 @@
+services:
+  mysql_test:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: gamebot_test
+      MYSQL_USER: gamebot_test
+      MYSQL_PASSWORD: testpassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/mysql

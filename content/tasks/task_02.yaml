@@ -1,0 +1,188 @@
+id: "task_02"
+order: 2
+type: question_answer
+media_file: "tasks/tasks_02.gif"
+
+text: |
+  🧬 <b>ТЕСТ НА ДНК ВАШОЇ ДРУЖБИ</b>
+
+  Оʼкей, богині дружби, увага! 🌟
+
+  Ви – геніальні, чарівні та, можливо, трохи божевільні у найкращому сенсі! 💃
+
+  Час дізнатися, <b>як виглядає ваша дружба у картинках</b> - кольорах, настроях і деталях, які одразу кажуть: це про нас!
+
+  📌 Тисни «Хочу відповісти» і <b>обирай</b> варіант, який найкраще описує вашу банду.
+
+  А потім я чарівною паличкою ✨ згенерую ваш спільний колаж – унікальний, як і ви самі 😉
+
+subtask:
+  type: voting_collage
+  exclusive_lock: true
+  
+  categories:
+    - id: "drink"
+      header_text: "🥂<b>НАШ НАПІЙ</b>:"
+      media_file: "task_02/drink_voting.jpg"
+      options:
+        - id: "smoothie"
+          label: "Петрушковий смузі"
+          media_file: "task_02/smoothie.jpg"
+        - id: "cappuccino"
+          label: "Кокосовий капучино"
+          media_file: "task_02/cappuccino.jpg"
+        - id: "aperol"
+          label: "Вітамінний апероль"
+          media_file: "task_02/aperol.jpg"
+        - id: "cognac"
+          label: "Зігріваючий коньячок"
+          media_file: "task_02/cognac.jpg"
+
+    - id: "music"
+      header_text: "🎵<b>НАША МУЗИКА</b>:"
+      media_file: "task_02/music_voting.jpg"
+      options:
+        - id: "tina_karol"
+          label: "Соул Тіни Кароль"
+          media_file: "task_02/tina_karol.jpg"
+        - id: "alyona_alyona"
+          label: "Хіп-хоп Alyona Alyona"
+          media_file: "task_02/alyona_alyona.jpg"
+        - id: "monatik"
+          label: "Поп MONATIK"
+          media_file: "task_02/monatik.jpg"
+        - id: "okean_elzy"
+          label: "Рок “Океану Ельзи”"
+          media_file: "task_02/okean_elzy.jpg"
+
+    - id: "entertainment"
+      header_text: "🎲<b>НАША РОЗВАГА</b>:"
+      media_file: "task_02/entertainment_voting.jpg"
+      options:
+        - id: "board_games"
+          label: "Настільні ігри"
+          media_file: "task_02/board_games.jpg"
+        - id: "karaoke_battle"
+          label: "Караоке-батл"
+          media_file: "task_02/karaoke_battle.jpg"
+        - id: "quest_room"
+          label: "Квест-кімната"
+          media_file: "task_02/quest_room.jpg"
+        - id: "online_game"
+          label: "Онлайн-гра"
+          media_file: "task_02/online_game.jpg"
+
+    - id: "dance"
+      header_text: "💃<b>НАШІ ТАНЦІ</b>:"
+      media_file: "task_02/dance_voting.jpg"
+      options:
+        - id: "latina"
+          label: "Запальна латина"
+          media_file: "task_02/latina.jpg"
+        - id: "hip_hop"
+          label: "Вуличний хіп-хоп"
+          media_file: "task_02/hip_hop.jpg"
+        - id: "contemporary"
+          label: "Експресивний контемпорарі"
+          media_file: "task_02/contemporary.jpg"
+        - id: "disco_2000"
+          label: "Дискотека 2000-х"
+          media_file: "task_02/disco_2000.jpg"
+
+    - id: "shoes"
+      header_text: "👠<b>НАШЕ ВЗУТТЯ</b>:"
+      media_file: "task_02/shoes_voting.jpg"
+      options:
+        - id: "ballet_shoes"
+          label: "Елегантні балетки"
+          media_file: "task_02/ballet_shoes.jpg"
+        - id: "bright_heels"
+          label: "Яскраві підбори"
+          media_file: "task_02/bright_heels.jpg"
+        - id: "comfortable_sneakers"
+          label: "Комфортні кросівки"
+          media_file: "task_02/comfortable_sneakers.jpg"
+        - id: "driving_boots"
+          label: "Драйвові чоботи"
+          media_file: "task_02/driving_boots.jpg"
+
+    - id: "show"
+      header_text: "🍿<b>НАШЕ ШОУ</b>:"
+      media_file: "task_02/show_voting.jpg"
+      options:
+        - id: "master_chef"
+          label: "Кулінарний “МайстерШеф”"
+          media_file: "task_02/master_chef.jpg"
+        - id: "supermoms"
+          label: "Виклики “Супермам”"
+          media_file: "task_02/supermoms.jpg"
+        - id: "bachelor"
+          label: "Романтичний “Холостяк”"
+          media_file: "task_02/bachelor.jpg"
+        - id: "voice_of_the_country"
+          label: "Талановиті “Голоси країни”"
+          media_file: "task_02/voice_of_the_country.jpg"
+
+    - id: "dinner"
+      header_text: "🍽<b>НАША ВЕЧЕРЯ</b>:"
+      media_file: "task_02/dinner_voting.jpg"
+      options:
+        - id: "sushi"
+          label: "Екзотичні суші"
+          media_file: "task_02/sushi.jpg"
+        - id: "steak"
+          label: "Соковитий стейк"
+          media_file: "task_02/steak.jpg"
+        - id: "salad"
+          label: "Легкий салат"
+          media_file: "task_02/salad.jpg"
+        - id: "pasta"
+          label: "Ситна паста"
+          media_file: "task_02/pasta.jpg"
+
+    - id: "series"
+      header_text: "📺<b>НАШ СЕРІАЛ</b>:"
+      media_file: "task_02/series_voting.jpg"
+      options:
+        - id: "buffy"
+          label: "Баффі – винищувачка вампірів"
+          media_file: "task_02/buffy.jpg"
+        - id: "friends"
+          label: "Друзі"
+          media_file: "task_02/friends.jpg"
+        - id: "beverly_hills_90210"
+          label: "Район Беверлі Гіллз, 90210"
+          media_file: "task_02/beverly_hills_90210.jpg"
+        - id: "charmed"
+          label: "Всі жінки відьми"
+          media_file: "task_02/charmed.jpg"
+
+    - id: "travel"
+      header_text: "🚀<b>НАША ПОДОРОЖ</b>:"
+      media_file: "task_02/travel_voting.jpg"
+      options:
+        - id: "paris_photo_tour"
+          label: "Фототур у Парижі"
+          media_file: "task_02/paris_photo_tour.jpg"
+        - id: "hoverla"
+          label: "Підйом на Говерлу"
+          media_file: "task_02/hoverla.jpg"
+        - id: "maldives"
+          label: "Релакс на Мальдівах"
+          media_file: "task_02/maldives.jpg"
+        - id: "glastonbury"
+          label: "Відрив на Гластонбері"
+          media_file: "task_02/glastonbury.jpg"
+
+summary:
+  type: collage
+  pending_text: "Чекайте-чекайте, меджик у процесі … 🧚"
+  ready_text: "Готово! Ловіть колаж із відповідей, які набрали найбільшу кількість голосів. Схоже на те, що подобається вашій гьорлз бенд? 💅"
+  hq_text: "Cупер висока якість для моїх aesthetic girls 🎀"
+
+followup:
+  - "{{.Mention}} дякую, пандочко 🐼 Коли усі подружки дадуть свої відповіді, я зроблю ваш спільний колаж!"
+  - "{{.Mention}} дякую, лисичко 🦊 Коли усі подружки дадуть свої відповіді, я зроблю ваш спільний колаж!"
+  - "{{.Mention}} дякую, мишко 🐭 Коли усі подружки дадуть свої відповіді, я зроблю ваш спільний колаж!"
+  - "{{.Mention}} дякую, левице 🦁 Коли усі подружки дадуть свої відповіді, я зроблю ваш спільний колаж!"
+
