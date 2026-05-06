@@ -97,3 +97,49 @@ log.Info().Msg("game created")
 ---
 
 *(Этот документ обновляется в конце каждого этапа разработки)*
+
+---
+
+## Доменный слой
+
+### Принцип изоляции
+
+Пакет `internal/domain/` не импортирует ничего из `internal/infrastructure/` или `internal/delivery/`. Он содержит только Go-структуры сущностей и Go-интерфейсы репозиториев — никаких реализаций.
+
+```
+domain/
+├── entity/       ← структуры данных (Game, Player, TaskResponse, ...)
+└── repository/   ← интерфейсы (GameRepository, PlayerRepository, ...)
+```
+
+Реализации репозиториев живут в `internal/infrastructure/mysql/repository/` и зависят от домена, но не наоборот.
+
+### Сущности
+
+| Структура | Таблица | Назначение |
+|---|---|---|
+| `Game` | `games` | Игра в конкретном чате; хранит текущую таску и статус |
+| `Player` | `players` | Участник конкретной игры; хранит счётчик пропусков |
+| `PlayerState` | `player_states` | Текущее состояние игрока: idle или awaiting_answer |
+| `TaskResponse` | `task_responses` | Ответ или пропуск игрока на конкретную таску |
+| `TaskLock` | `task_locks` | Эксклюзивный лок для сабтасок 2, 4, 10 |
+| `SubtaskProgress` | `subtask_progress` | Промежуточный прогресс сабтаски (текущий вопрос + ответы) |
+| `TaskResult` | `task_results` | Итог финализации таски (победители, коллаж и т.п.) |
+| `NotificationLog` | `notifications_log` | Журнал отправленных напоминаний |
+
+### Интерфейсы репозиториев
+
+Каждый интерфейс определён в отдельном файле `repository/<entity>.go`. Бизнес-логика (`usecase/`) зависит только от этих интерфейсов, что позволяет подменять реализацию (MySQL → другая БД) без изменения usecase-кода.
+
+### Зависимости между сущностями
+
+```
+Game ──┬── Player ──── PlayerState
+       │         └─── TaskResponse
+       │         └─── TaskLock
+       │         └─── SubtaskProgress
+       │         └─── NotificationLog
+       └── TaskResult
+```
+
+`Player` всегда принадлежит конкретной `Game` (поле `GameID`). Удаление игрока через `CASCADE` убирает все связанные записи.
