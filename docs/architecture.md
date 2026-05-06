@@ -197,3 +197,104 @@ Game ──┬── Player ──── PlayerState
 ```
 
 `Player` всегда принадлежит конкретной `Game` (поле `GameID`). Удаление игрока через `CASCADE` убирает все связанные записи.
+
+---
+
+## Управление игрой (Stage 4)
+
+### Жизненный цикл игры
+
+```
+[бот добавлен в чат]
+        │
+        ▼
+   status=pending  ← Creator.Create (идемпотентно)
+        │
+   [admin нажимает "Розпочати гру"]
+        │
+        ▼
+   status=active   ← Starter.Start → UpdateStatus → publish task 1
+        │
+   [12 тасок пройдено]
+        │
+        ▼
+   status=finished ← task/finalize (Stage 5+)
+```
+
+### Обработка события «бот добавлен в чат»
+
+```
+tele.OnMyChatMember
+        │
+        ▼
+ChatMemberHandler.OnMyChatMember
+        │
+        ├── game.Creator.Create(chatID, chatName, adminUser)
+        │       └── gameRepo.GetByChatID → уже есть? nil,nil (идемпотент)
+        │           gameRepo.Create (status=pending)
+        │           playerRepo.Create (admin)
+        │           playerStateRepo.Upsert (idle)
+        │
+        ├── bot.Send(chat, welcomeMsg + JoinKeyboard)
+        │
+        └── time.Sleep(JoinMessageDelay) → bot.Send(chat, startMsg + StartKeyboard)
+```
+
+### Middleware-цепочка
+
+```
+Recover → PlayerCheck → Handler
+```
+
+- **Recover**: оборачивает `panic` в `log.Error`, предотвращает крэш бота
+- **PlayerCheck**: для каждого callback на кнопки таски — проверяет наличие `Game` (по `chatID`) и `Player` (по `game.ID` + `senderID`); кладёт найденные объекты в `c.Set("game", g)` / `c.Set("player", p)`; при отсутствии — отправляет `not_in_game` и прерывает цепочку
+
+Маршруты без PlayerCheck: `game:join` (пользователь ещё не в игре).
+
+### Inline-кнопки (keyboard factory)
+
+Все `*tele.ReplyMarkup` создаются только через `internal/delivery/bot/keyboard/factory.go`:
+
+| Функция | Callback data | Применение |
+|---|---|---|
+| `JoinKeyboard()` | `game:join` | Приглашение войти в игру |
+| `StartKeyboard()` | `game:start` | Кнопка "Розпочати гру" (только для admin) |
+| `LeaveConfirmKeyboard()` | `game:leave_confirm` / `game:leave_cancel` | Подтверждение выхода |
+| `TaskKeyboard(taskID)` | `task:<id>:answer` / `task:<id>:skip` | Кнопки ответа на таску |
+
+### Формат callback_data
+
+```
+game:join
+game:leave
+game:leave_confirm
+game:leave_cancel
+game:start
+task:<taskID>:answer
+task:<taskID>:skip
+```
+
+### Интерфейс Sender
+
+`usecase/game` определяет минимальный интерфейс отправки сообщений:
+
+```go
+type Sender interface {
+    Send(to tele.Recipient, what interface{}, opts ...interface{}) (*tele.Message, error)
+    Delete(msg tele.Editable) error
+}
+```
+
+`*tele.Bot` реализует этот интерфейс. В тестах используется `mockSender`.
+
+### TaskPublisher (заглушка до Stage 5)
+
+`Starter` зависит от интерфейса `TaskPublisher`:
+
+```go
+type TaskPublisher interface {
+    Publish(ctx context.Context, game *entity.Game) error
+}
+```
+
+В `cmd/bot/main.go` пока передаётся `nil`; `Starter.Start` проверяет наличие перед вызовом. В Stage 5 будет подключён реальный `task.Publisher`.
