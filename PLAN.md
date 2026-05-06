@@ -282,7 +282,7 @@ type NotificationRepository interface {
 
 ---
 
-## Этап 3 — Инфраструктура
+## Этап 3 — Инфраструктура ✅
 
 **Цель:** реализовать все репозитории, медиа-хранилище, Telegram-клиент, formatter, lock manager.
 

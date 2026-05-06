@@ -100,6 +100,60 @@ log.Info().Msg("game created")
 
 ---
 
+## Инфраструктурный слой
+
+### Принцип
+
+`internal/infrastructure/` реализует интерфейсы из `domain/repository/`, но не содержит бизнес-логики. Usecase-код работает только с интерфейсами — конкретные реализации внедряются в `cmd/*/main.go`.
+
+### MySQL-репозитории
+
+Каждый файл в `internal/infrastructure/mysql/repository/` реализует один интерфейс из `domain/repository/`:
+
+| Файл | Интерфейс | Ключевые особенности |
+|---|---|---|
+| `game.go` | `GameRepository` | `SetActivePollID` использует `sql.NullString`; `UpdateStatus` автоматически ставит `started_at`/`finished_at` |
+| `player.go` | `PlayerRepository` | `COALESCE` для nullable `username`/`first_name` |
+| `player_state.go` | `PlayerStateRepository` | `Upsert` через `INSERT ... ON DUPLICATE KEY UPDATE` |
+| `task_response.go` | `TaskResponseRepository` | `GetAllByTask` возвращает только `answered`, отсортированные по `created_at` |
+| `task_lock.go` | `TaskLockRepository` | `Acquire` через `INSERT IGNORE` — только первый вызов победит по уникальному ключу |
+| `subtask_progress.go` | `SubtaskProgressRepository` | `Upsert` через `INSERT ... ON DUPLICATE KEY UPDATE` для безопасного обновления прогресса |
+| `task_result.go` | `TaskResultRepository` | Простой CRUD |
+| `notification.go` | `NotificationRepository` | `GetUnnotifiedPlayers` — LEFT JOIN players с `notifications_log` и `task_responses`; возвращает тех, у кого нет обоих |
+
+Все конструкторы принимают `*sql.DB`. Ошибки оборачиваются с контекстом: `fmt.Errorf("mysql/game.Create: %w", err)`.
+
+### media.Storage
+
+Интерфейс `media.Storage` объявлен в `internal/infrastructure/media/local.go`:
+
+```go
+type Storage interface {
+    GetFile(name string) (*tele.Document, error)
+    GetPhoto(name string) (*tele.Photo, error)
+    GetAnimation(name string) (*tele.Animation, error)
+}
+```
+
+`LocalStorage` читает файлы с диска через `tele.FromDisk`. Проверяет существование через `os.Stat` перед возвратом. В будущем можно добавить `S3Storage` без изменения usecase-кода — интерфейс останется тем же.
+
+### pkg/formatter
+
+Единственная точка рендеринга сообщений в HTML-формат для Telegram. Константа `ParseMode = tele.ModeHTML` используется во всех отправках.
+
+Функция `Mention` формирует HTML-ссылку на пользователя; `RenderTemplate` выполняет Go-шаблоны с произвольными данными.
+
+### pkg/lock/manager
+
+`LockManager.TryAcquire` реализует алгоритм захвата эксклюзивного лока через БД:
+1. `ReleaseExpired` — чистит истёкшие локи (всегда первым)
+2. `Acquire` — `INSERT IGNORE` (только один игрок пишет успешно по уникальному ключу)
+3. `Get` → проверить `lock.PlayerID == playerID` — возвращает `true` если этот игрок победил
+
+Это атомарная операция на уровне MySQL — параллельные вызовы от разных игроков корректно разрешаются без дополнительной синхронизации в коде.
+
+---
+
 ## Доменный слой
 
 ### Принцип изоляции
