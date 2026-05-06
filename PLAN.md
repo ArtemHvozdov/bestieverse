@@ -622,7 +622,7 @@ Recovery от паники: `log.Error().Stack().Err(err).Msg("panic recovered")
 
 ---
 
-## Этап 6 — Финализация тасок (Router + TaskFinalizer) и нотификатор
+## Этап 6 — Финализация тасок (Router + TaskFinalizer) и нотификатор ✅
 
 **Цель:** подведение итогов тасок через паттерн Router+Interface; отправка напоминаний.
 

@@ -374,3 +374,84 @@ idle  ──[Хочу відповісти]──►  awaiting_answer
 2. `CurrentTaskPublishedAt + TaskPublishInterval ≤ now` → публикует следующую таску (если она существует)
 
 Финализация тасок добавляется в Stage 6.
+
+---
+
+## Паттерн финализации тасок: Router + TaskFinalizer
+
+### Диаграмма
+
+```
+scheduler
+    └─► FinalizeRouter.Finalize(game, task)
+            ├─ GetAllByTask → []responses
+            ├─ len==0 → send na_answers
+            └─ finalizers[task.Summary.Type].Finalize(...)
+                    ├─ TextFinalizer         (summary.type = "text")
+                    ├─ PredictionsFinalizer  (summary.type = "predictions")
+                    ├─ WhoIsWhoFinalizer     (summary.type = "who_is_who_results", Stage 8)
+                    ├─ CollageFinalizer      (summary.type = "collage", Stage 7)
+                    └─ OpenAICollageFinalizer(summary.type = "openai_collage", Stage 11)
+            └─ last task? → finishGame
+```
+
+### Почему Router + интерфейс
+
+Добавление нового `summary.type` = создание нового файла, реализующего `TaskFinalizer`. Роутер не меняется. Регистрация — через `NewFinalizeRouter(...finalizers)`.
+
+### Контракт TaskFinalizer
+
+```go
+type TaskFinalizer interface {
+    Finalize(ctx, game, task, responses) error
+    SupportedSummaryType() string
+}
+```
+
+Каждый финализатор **сам** отправляет итоговое сообщение и сохраняет `task_result` (если нужно).
+
+### Таблица summary.type → финализатор
+
+| `summary.type`       | Финализатор              | Этап |
+|----------------------|--------------------------|------|
+| `text`               | `TextFinalizer`          | 6    |
+| `predictions`        | `PredictionsFinalizer`   | 6    |
+| `who_is_who_results` | `WhoIsWhoFinalizer`      | 8    |
+| `collage`            | `CollageFinalizer`       | 7    |
+| `openai_collage`     | `OpenAICollageFinalizer` | 11   |
+
+### Завершение игры (`finishGame`)
+
+Вызывается роутером после финализации последней таски (`TaskByOrder(task.Order+1) == nil`):
+1. `gameRepo.SetFinished(game.ID)`
+2. Отправить `game.final_message_1` (GIF `game/final.gif`)
+3. `time.Sleep(TaskInfoInterval)`
+4. Отправить `game.final_message_2`
+
+### Scheduler (обновлён в Stage 6)
+
+Тикер запускается каждую минуту и обрабатывает каждую активную игру **в отдельной горутине** (`sync.WaitGroup`):
+1. `CurrentTaskOrder == 0` → публикует первую таску
+2. `CurrentTaskPublishedAt + TaskFinalizeOffset ≤ now` → финализирует текущую таску
+3. `CurrentTaskPublishedAt + TaskPublishInterval ≤ now` → публикует следующую таску
+
+---
+
+## Нотификатор (`cmd/notifier`)
+
+Независимый сервис; падение не влияет на бот. Тикер каждую минуту.
+
+### `usecase/notification.ReminderSender`
+
+```
+SendReminders():
+    GetAllActive games
+    for each game:
+        if time.Since(game.CurrentTaskPublishedAt) < ReminderDelay → skip
+        GetUnnotifiedPlayers(game.ID, task.ID)
+        for each player:
+            Send reminder with {{.Mention}}
+            Create NotificationLog
+```
+
+Ключевая деталь: проверка `ReminderDelay` выполняется по `game.CurrentTaskPublishedAt`, а **не** по времени присоединения игрока или его последнего ответа. Один игрок получает максимум одно напоминание на таску (гарантируется через `notifications_log`).
