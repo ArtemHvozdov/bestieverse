@@ -297,4 +297,80 @@ type TaskPublisher interface {
 }
 ```
 
-В `cmd/bot/main.go` пока передаётся `nil`; `Starter.Start` проверяет наличие перед вызовом. В Stage 5 будет подключён реальный `task.Publisher`.
+В `cmd/bot/main.go` теперь подключён реальный `task.Publisher`; заглушка `nil` удалена в Stage 5.
+
+---
+
+## Жизненный цикл таски
+
+### Схема состояний
+
+```
+Таска опубликована
+       │
+       ▼
+ [Хочу відповісти]  ←──── player state: idle
+       │
+       ▼
+ player state: awaiting_answer
+       │
+  (входящее сообщение)
+       │
+       ▼
+ task_response: answered   ──► player state: idle
+       │
+       ▼
+       └─── (scheduler) TaskFinalizeOffset → финализация
+```
+
+```
+ [Пропустити]   (SkipCount < 3)
+       │
+       ▼
+ task_response: skipped   (player state не меняется)
+```
+
+### Схема состояний игрока
+
+```
+idle  ──[Хочу відповісти]──►  awaiting_answer
+ ▲                                   │
+ └──────[Answer / Skip]──────────────┘
+```
+
+### Компоненты Stage 5
+
+| Файл | Назначение |
+|---|---|
+| `usecase/task/publish.go` | Публикует следующую таску; обновляет `game.current_task_order` |
+| `usecase/task/request_answer.go` | Кнопка «Хочу відповісти» → переводит игрока в `awaiting_answer` |
+| `usecase/task/answer.go` | Входящее сообщение → сохраняет ответ, возвращает в `idle` |
+| `usecase/task/skip.go` | Кнопка «Пропустити» → лимит 3 пропуска на игру |
+| `delivery/bot/handler/message.go` | Маршрутизирует входящие сообщения группы к Answerer |
+| `cmd/scheduler/main.go` | Тикер каждую минуту: проверяет когда публиковать следующую таску |
+
+### Маршрутизация callback_data
+
+| Endpoint | Данные (`c.Data()`) | Хэндлер |
+|---|---|---|
+| `\ftask:request` | taskID | `OnTaskRequestAnswer` |
+| `\ftask:skip` | taskID | `OnTaskSkip` |
+
+`kbd.Data(label, unique, payload)` — telebot v3 передаёт `payload` как `c.Data()`, `unique` используется для роутинга.
+
+### Message handler
+
+`OnMessage` игнорирует сообщения если:
+- Нет активной игры в чате
+- Отправитель не является игроком
+- Игрок не в состоянии `awaiting_answer`
+
+Для таски типа `question_answer` любой медиаконтент принимается как ответ.
+
+### Scheduler
+
+Тикер запускается каждую минуту и для каждой активной игры:
+1. `CurrentTaskOrder == 0` → сразу публикует первую таску
+2. `CurrentTaskPublishedAt + TaskPublishInterval ≤ now` → публикует следующую таску (если она существует)
+
+Финализация тасок добавляется в Stage 6.

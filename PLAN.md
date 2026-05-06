@@ -510,7 +510,7 @@ Recovery от паники: `log.Error().Stack().Err(err).Msg("panic recovered")
 
 ---
 
-## Этап 5 — Базовый ответ на таску (question_answer)
+## Этап 5 — Базовый ответ на таску (question_answer) ✅
 
 **Цель:** полный цикл таски типа `question_answer` — публикация, ответ, пропуск. Запуск scheduler.
 

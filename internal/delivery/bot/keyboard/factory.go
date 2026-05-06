@@ -29,10 +29,11 @@ func LeaveConfirmKeyboard() *tele.ReplyMarkup {
 }
 
 // TaskKeyboard returns the inline keyboard attached to a published task.
+// taskID is passed as the callback payload; handlers receive it via c.Data().
 func TaskKeyboard(taskID string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task:request:"+taskID)
-	skip := kbd.Data("Пропустити ⏭️", "task:skip:"+taskID)
+	answer := kbd.Data("Хочу відповісти ✍️", "task:request", taskID)
+	skip := kbd.Data("Пропустити ⏭️", "task:skip", taskID)
 	kbd.Inline(kbd.Row(answer, skip))
 	return kbd
 }

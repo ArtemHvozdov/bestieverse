@@ -11,6 +11,7 @@ import (
 	mysqlrepo "github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/mysql/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/telegram"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/game"
+	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	tele "gopkg.in/telebot.v3"
 )
@@ -34,6 +35,7 @@ func main() {
 	gameRepo := mysqlrepo.NewGameRepo(db)
 	playerRepo := mysqlrepo.NewPlayerRepo(db)
 	playerStateRepo := mysqlrepo.NewPlayerStateRepo(db)
+	taskResponseRepo := mysqlrepo.NewTaskResponseRepo(db)
 
 	// Bot
 	bot, err := telegram.NewBot(cfg.Bot.Token, tele.Settings{
@@ -46,15 +48,22 @@ func main() {
 	// Media
 	mediaStorage := media.NewLocalStorage(cfg.Media.Path)
 
-	// Usecases
+	// Task usecases
+	publisher := taskuc.NewPublisher(gameRepo, mediaStorage, bot, cfg, log)
+	requestAnswerer := taskuc.NewRequestAnswerer(taskResponseRepo, playerStateRepo, bot, &cfg.Messages, &cfg.Timings, log)
+	answerer := taskuc.NewAnswerer(taskResponseRepo, playerStateRepo, bot, &cfg.Messages, &cfg.Timings, log)
+	skipper := taskuc.NewSkipper(taskResponseRepo, playerRepo, bot, &cfg.Messages, &cfg.Timings, log)
+
+	// Game usecases
 	creator := game.NewCreator(gameRepo, playerRepo, playerStateRepo, log)
 	joiner := game.NewJoiner(gameRepo, playerRepo, playerStateRepo, bot, &cfg.Messages, &cfg.Timings, log)
 	leaver := game.NewLeaver(playerRepo, bot, &cfg.Messages, &cfg.Timings, log)
-	starter := game.NewStarter(gameRepo, mediaStorage, bot, nil, cfg, log) // publisher wired in Stage 5
+	starter := game.NewStarter(gameRepo, mediaStorage, bot, publisher, cfg, log)
 
 	// Handlers
 	chatMemberHandler := handler.NewChatMemberHandler(creator, bot, cfg, log)
-	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, log)
+	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, cfg, log)
+	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, log)
 
 	// Middleware
 	pc := botmw.PlayerCheck(gameRepo, playerRepo, bot, &cfg.Messages, &cfg.Timings, log)
@@ -62,13 +71,24 @@ func main() {
 	// Global middleware
 	bot.Use(botmw.Recover(log))
 
-	// Routes
+	// Routes — game management
 	bot.Handle(tele.OnMyChatMember, chatMemberHandler.OnMyChatMember)
 	bot.Handle("\fgame:join", callbackHandler.OnJoin)
 	bot.Handle("\fgame:leave", callbackHandler.OnLeave, pc)
 	bot.Handle("\fgame:leave_confirm", callbackHandler.OnLeaveConfirm, pc)
 	bot.Handle("\fgame:leave_cancel", callbackHandler.OnLeaveCancel, pc)
 	bot.Handle("\fgame:start", callbackHandler.OnStart, pc)
+
+	// Routes — task interactions
+	bot.Handle("\ftask:request", callbackHandler.OnTaskRequestAnswer, pc)
+	bot.Handle("\ftask:skip", callbackHandler.OnTaskSkip, pc)
+	bot.Handle(tele.OnText, messageHandler.OnMessage)
+	bot.Handle(tele.OnPhoto, messageHandler.OnMessage)
+	bot.Handle(tele.OnVideo, messageHandler.OnMessage)
+	bot.Handle(tele.OnAudio, messageHandler.OnMessage)
+	bot.Handle(tele.OnVoice, messageHandler.OnMessage)
+	bot.Handle(tele.OnVideoNote, messageHandler.OnMessage)
+	bot.Handle(tele.OnDocument, messageHandler.OnMessage)
 
 	log.Info().Msg("bot started")
 	bot.Start()
