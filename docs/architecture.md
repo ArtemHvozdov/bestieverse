@@ -455,3 +455,46 @@ SendReminders():
 ```
 
 Ключевая деталь: проверка `ReminderDelay` выполняется по `game.CurrentTaskPublishedAt`, а **не** по времени присоединения игрока или его последнего ответа. Один игрок получает максимум одно напоминание на таску (гарантируется через `notifications_log`).
+
+---
+
+## Таска 10: Poll и ветвление
+
+### Схема ветвления
+
+```
+scheduler → task/publish (poll_then_task)
+    │  sends animation + text
+    └─ sends tele.Poll (anonymous, close_date = now + PollDuration)
+         │  stores poll.ID in games.active_poll_id
+         │
+         │  ... players vote ...
+         │
+    tele.OnPoll fires (poll is_closed=true)
+         │
+    delivery/handler/poll_answer.go → subtask.PollHandler.HandlePollClosed
+         │
+         ├─ GetByActivePollID(poll.ID) → finds game
+         ├─ determineWinner(poll.Options, task.Poll.Options)
+         ├─ taskResultRepo.Create({"winning_option": optionID})
+         ├─ SetActivePollID(game.ID, "") — очищаем
+         │
+         └─ publishFollowUp:
+              ├─ result_type="question_answer" → sends PreparedText + task keyboard
+              └─ result_type="meme_voiceover"  → stub (полная реализация в Stage 10)
+```
+
+### Хранение `active_poll_id`
+
+Поле `active_poll_id VARCHAR(64)` хранится прямо в таблице `games` (а не в отдельной таблице). Причина: в один момент времени у одной игры может быть максимум один активный опрос, а структура отдельной таблицы была бы избыточной. Наличие индекса `INDEX idx_active_poll (active_poll_id)` делает `GetByActivePollID` эффективным.
+
+### Алгоритм определения победителя
+
+Функция `determineWinner(pollResults []tele.PollOption, configOptions []config.PollOption)`:
+
+1. Итерация по опциям в порядке YAML
+2. Победитель = опция с наибольшим `VoterCount`
+3. При **ничьей** — побеждает первая по порядку в YAML (стабильный порядок)
+4. При **всех 0 голосов** — то же правило: первая опция (индекс 0)
+
+Это гарантирует детерминированный результат без случайности.

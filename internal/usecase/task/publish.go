@@ -66,6 +66,38 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 		} else {
 			p.sender.Send(chat, task.Text, formatter.ParseMode, kbd) //nolint:errcheck
 		}
+
+	case "poll_then_task":
+		if task.Poll == nil {
+			return fmt.Errorf("task.Publish: task %s has no poll config", task.ID)
+		}
+		// Send animation with task description
+		if anim, err := p.media.GetAnimation(task.MediaFile); err == nil {
+			anim.Caption = task.Text
+			p.sender.Send(chat, anim, formatter.ParseMode) //nolint:errcheck
+		} else {
+			p.sender.Send(chat, task.Text, formatter.ParseMode) //nolint:errcheck
+		}
+		// Build and send the Telegram poll
+		options := make([]tele.PollOption, len(task.Poll.Options))
+		for i, opt := range task.Poll.Options {
+			options[i] = tele.PollOption{Text: opt.Label}
+		}
+		poll := &tele.Poll{
+			Question:      task.Poll.Title,
+			Options:       options,
+			Anonymous:     true,
+			CloseUnixdate: now.Add(p.cfg.Timings.PollDuration).Unix(),
+		}
+		msg, err := p.sender.Send(chat, poll)
+		if err != nil {
+			return fmt.Errorf("task.Publish: send poll: %w", err)
+		}
+		if msg != nil && msg.Poll != nil {
+			if err := p.gameRepo.SetActivePollID(ctx, game.ID, msg.Poll.ID); err != nil {
+				return fmt.Errorf("task.Publish: set active poll id: %w", err)
+			}
+		}
 	}
 
 	p.log.Info().

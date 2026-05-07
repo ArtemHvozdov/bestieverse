@@ -38,6 +38,7 @@ func main() {
 	playerRepo := mysqlrepo.NewPlayerRepo(db)
 	playerStateRepo := mysqlrepo.NewPlayerStateRepo(db)
 	taskResponseRepo := mysqlrepo.NewTaskResponseRepo(db)
+	taskResultRepo := mysqlrepo.NewTaskResultRepo(db)
 	taskLockRepo := mysqlrepo.NewTaskLockRepo(db)
 	subtaskProgressRepo := mysqlrepo.NewSubtaskProgressRepo(db)
 
@@ -84,6 +85,7 @@ func main() {
 		&cfg.Timings,
 		log,
 	)
+	pollHandler := subtask.NewPollHandler(gameRepo, taskResultRepo, bot, cfg, log)
 
 	// Game usecases
 	creator := game.NewCreator(gameRepo, playerRepo, playerStateRepo, log)
@@ -95,6 +97,7 @@ func main() {
 	chatMemberHandler := handler.NewChatMemberHandler(creator, bot, cfg, log)
 	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, whoIsWhoHandler, cfg, log)
 	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, log)
+	pollAnswerHandler := handler.NewPollAnswerHandler(pollHandler, log)
 
 	// Middleware
 	pc := botmw.PlayerCheck(gameRepo, playerRepo, bot, &cfg.Messages, &cfg.Timings, log)
@@ -115,6 +118,7 @@ func main() {
 	bot.Handle("\ftask:skip", callbackHandler.OnTaskSkip, pc)
 	bot.Handle("\ftask02:choice", callbackHandler.OnTask02Choice, pc)
 	bot.Handle("\ftask04:player", callbackHandler.OnTask04PlayerChoice, pc)
+	bot.Handle(tele.OnPoll, pollAnswerHandler.OnPoll)
 	bot.Handle(tele.OnText, messageHandler.OnMessage)
 	bot.Handle(tele.OnPhoto, messageHandler.OnMessage)
 	bot.Handle(tele.OnVideo, messageHandler.OnMessage)
