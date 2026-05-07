@@ -793,79 +793,153 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 
 ---
 
-## Этап 7 — Сабтаска voting_collage (Таска 2)
+## Этап 7 — Сабтаска voting_collage (Таска 2) ✅
 
-**Цель:** голосование по категориям с эксклюзивным локом; генерация коллажа через OpenAI.
+**Цель:** голосование по категориям с эксклюзивным локом; локальная сборка 
+коллажа из готовых изображений.
+
+---
+
+### 7.0 Анализ библиотек для сборки коллажа
+
+Перед реализацией CollageFinalizer изучить `docs/reference/collage_handler.go`
+и проанализировать два варианта:
+
+**Вариант A:** `github.com/fogleman/gg` + `golang.org/x/image/draw`
+**Вариант B:** только stdlib `image/draw` + `golang.org/x/image/draw`
+(без fogleman/gg)
+
+Ответить на вопросы:
+- Какие именно функции fogleman/gg используются в референсном коде?
+- Можно ли заменить их stdlib без потери качества и читаемости?
+- Какой вариант предпочтительнее с точки зрения зависимостей и поддержки?
+
+**⛔ СТОП: вывести анализ и ждать подтверждения разработчика перед тем
+как продолжить реализацию.**
+
+---
 
 ### 7.1 `internal/usecase/task/subtask/voting_collage.go`
 
-Зависимости: `LockManager`, `SubtaskProgressRepository`, `TaskResponseRepository`, `PlayerStateRepository`, `media.Storage`, `openai.Client`, `tele.Bot`, `config.Messages`, `config.Timings`
+Зависимости: `LockManager`, `SubtaskProgressRepository`, `TaskResponseRepository`,
+`PlayerStateRepository`, `media.Storage`, `tele.Bot`, `config.Messages`,
+`config.Timings`
 
 `HandleRequestAnswer(ctx, game, player, task) error`:
-1. `lockManager.TryAcquire(ctx, game.ID, task.ID, player.ID)`; если `false` → `subtask_locked` (удалить через 10s)
-2. `subtaskProgressRepo.Get` — если нет, создать (question_index=0, answers_data={})
+1. `lockManager.TryAcquire(ctx, game.ID, task.ID, player.ID)`
+   - если `false` → отправить случайное `subtask_locked`, удалить через 10s; return
+2. `subtaskProgressRepo.Get` — если нет записи, создать
+   (question_index=0, answers_data={})
 3. `playerStateRepo.Upsert(awaiting_answer, task.ID)`
-4. Отправить категорию `task.Subtask.Categories[progress.QuestionIndex]`:
-   - `media.GetPhoto(category.MediaFile)` + `category.HeaderText` + `CategoryKeyboard(task, idx)`
+4. Отправить первую категорию `task.Subtask.Categories[0]`:
+   `media.GetPhoto(category.MediaFile)` + `category.HeaderText`
+   + `CategoryKeyboard(task, 0)`
 
 `HandleCategoryChoice(ctx, game, player, task, categoryID, optionID string) error`:
-1. Проверить `lockManager` — если лок не принадлежит player → `subtask_locked` (удалить через 10s)
-2. Добавить выбор в `progress.AnswersData[categoryID] = optionID`
+1. Проверить что лок принадлежит player → если нет:
+   `subtask_locked` (удалить через 10s); return
+2. Добавить выбор: `progress.AnswersData[categoryID] = optionID`
 3. `subtaskProgressRepo.Upsert(progress)`
 4. `progress.QuestionIndex++`
-5. Если остались категории → отправить следующую
+5. Если остались категории → отправить следующую категорию
 6. Если все категории пройдены:
    - `taskResponseRepo.Create(answered, response_data=progress.AnswersData)`
    - `subtaskProgressRepo.Delete`
    - `lockManager.Release`
    - `playerStateRepo.SetIdle`
-   - Отправить случайное `followup` из task YAML
+   - Отправить случайное `subtask_answered_waiting_others` с `{{.Mention}}`
 
-### 7.2 Реализация `CollageFinalizer` (из этапа 6, файл `finalize/collage.go`)
+---
+
+### 7.2 Реализация `CollageFinalizer` (finalize/collage.go)
+
+**ВАЖНО:** коллаж собирается **локально** из готовых изображений в
+`assets/media/task_02/`. OpenAI **не используется**.
+Библиотеки — по результату анализа из шага 7.0.
+
+Референсная реализация: `docs/reference/collage_handler.go`
+Адаптировать логику `CreateSubtask2CollageWithGG` и `fitImageToTileSubtask2`
+под новую архитектуру со следующими отличиями от референса:
+- Изображения получать через `media.Storage` вместо прямых путей `filepath.Join`
+- Временный файл создавать через `os.CreateTemp(os.TempDir(), "collage_*.jpg")`
+  вместо корня проекта
+- Логирование через `pkg/logger` вместо `fmt.Println`
+- Удаление временного файла через 5 секунд в горутине после отправки
 
 `Finalize(ctx, game, task, responses) error`:
-1. Собрать голоса: для каждого `response.ResponseData` (JSON `{categoryID: optionID}`) — подсчитать по каждой категории
-2. Победитель категории = опция с max голосов; при равенстве — первый по порядку в YAML
-3. Сохранить в `task_results.ResultData`: `{"drink": "smoothie", "music": "tina_karol", ...}`
-4. Сформировать prompt для OpenAI: перечислить победившие варианты с метками
-5. Отправить `summary.SendingText`
-6. `openaiClient.GenerateCollage(ctx, prompt)` → `imageBytes`
-7. Отправить изображение как `tele.Photo` + `summary.ReadyText`
-8. Опционально: отправить PDF-версию высокого качества с `summary.HqText`
+1. Собрать голоса: для каждого `response.ResponseData`
+   (JSON `{categoryID: optionID}`) подсчитать по каждой категории
+2. Победитель категории = опция с max голосов;
+   при равенстве — первый по порядку в YAML
+3. Сохранить в `task_results.ResultData`:
+   `{"drink": "smoothie", "dance": "salsa", ...}`
+4. Для каждой победившей опции взять `media_file` из YAML-конфига
+5. Загрузить изображения через `media.Storage`
+6. Собрать коллаж: сетка 3×3, cellSize=720, canvas 2160×2160, тёмный фон
+7. Сохранить во временный файл
+8. Отправить `summary.PendingText`
+9. Отправить коллаж как `tele.Photo` + `summary.ReadyText`
+10. Отправить коллаж как `tele.Document` (HQ) + `summary.HqText`
+11. Удалить временный файл через 5 секунд (горутина)
+
+---
 
 ### 7.3 Обновление `callback.go`
 
+Добавить роутинг нового callback-а:
 ```
 "task02:choice:{categoryID}:{optionID}" → votingCollage.HandleCategoryChoice
 ```
 
+Когда игрок нажимает кнопку варианта, Telegram отправляет callback с данными
+`task02:choice:drink:smoothie` — бот должен распарсить categoryID и optionID
+и передать в `HandleCategoryChoice`.
+
 ### 7.4 Обновление `keyboard/factory.go`
 
-`CategoryKeyboard(task *config.Task, catIdx int) *tele.ReplyMarkup` — кнопки вариантов текущей категории
+`CategoryKeyboard(task *config.Task, catIdx int) *tele.ReplyMarkup` —
+кнопки вариантов текущей категории.
+Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
+
+---
 
 ### Unit-тесты этапа 7
 
 **`usecase/task/subtask/voting_collage_test.go`**
-- Тест: `HandleRequestAnswer` — лок свободен → захвачен, прогресс создан, первая категория отправлена
-- Тест: `HandleRequestAnswer` — лок занят → `subtask_locked`, прогресс не создан
-- Тест: `HandleCategoryChoice` — промежуточный выбор → прогресс обновлён, следующая категория отправлена
-- Тест: `HandleCategoryChoice` — последняя категория → response создан, прогресс удалён, лок освобождён, `followup` отправлен
-- Тест: `HandleCategoryChoice` — лок принадлежит другому игроку → ранний выход
+- Тест: `HandleRequestAnswer` — лок свободен → захвачен, прогресс создан,
+  первая категория отправлена
+- Тест: `HandleRequestAnswer` — лок занят → `subtask_locked` отправлен,
+  прогресс не создан
+- Тест: `HandleCategoryChoice` — промежуточный выбор → прогресс обновлён,
+  следующая категория отправлена
+- Тест: `HandleCategoryChoice` — последняя категория → response создан,
+  прогресс удалён, лок освобождён, `subtask_answered_waiting_others` отправлен
+- Тест: `HandleCategoryChoice` — лок принадлежит другому игроку →
+  ранний выход, ничего не изменено
 
 **`usecase/task/finalize/collage_test.go`**
-- Тест: подсчёт голосов — 3 игрока выбрали `smoothie`, 1 — `cappuccino` → победитель `smoothie`
-- Тест: ничья по голосам → победитель — первый по порядку в YAML
-- Тест: нет ответов → покрывается тестом `router_test.go` (na_answers)
-- Тест: `openaiClient.GenerateCollage` вызван с промптом, содержащим победившие варианты
-- Тест: `task_result` создан с корректным JSON
+- Тест: подсчёт голосов — 3 игрока выбрали `smoothie`, 1 — `cappuccino` →
+  победитель `smoothie`
+- Тест: ничья по голосам → победитель первый по порядку в YAML
+- Тест: нет ответов → покрывается `router_test.go`, `CollageFinalizer`
+  не вызван
+- Тест: `task_result` создан с корректным JSON победителей
+- Тест: временный файл удаляется после отправки
+
+---
 
 ### Обновление `docs/architecture.md`
 
 Добавить раздел **«Сабтаска voting_collage»**:
-- Диаграмма flow: request_answer → lock → show category → choice → next category / finish
+- Диаграмма flow:
+  `request_answer → lock → show category → choice → next category / finish`
 - Объяснение эксклюзивного лока: почему нельзя отвечать параллельно
-- Описание `subtask_progress`: промежуточное состояние между вопросами
-- Описание алгоритма подсчёта голосов и формирования OpenAI prompt
+- Описание `subtask_progress`: промежуточное состояние между категориями
+- Алгоритм подсчёта голосов и определения победителя при ничье
+- Описание сборки коллажа: библиотеки (по итогу анализа 7.0),
+  размеры сетки, временный файл
+
+---
 
 ### Результат этапа
 

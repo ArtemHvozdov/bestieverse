@@ -1,6 +1,9 @@
 package keyboard
 
-import tele "gopkg.in/telebot.v3"
+import (
+	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
+	tele "gopkg.in/telebot.v3"
+)
 
 // JoinKeyboard returns the inline keyboard shown when the bot joins a chat.
 func JoinKeyboard(supportURL string) *tele.ReplyMarkup {
@@ -35,5 +38,20 @@ func TaskKeyboard(taskID string) *tele.ReplyMarkup {
 	answer := kbd.Data("Хочу відповісти ✍️", "task:request", taskID)
 	skip := kbd.Data("Пропустити ⏭️", "task:skip", taskID)
 	kbd.Inline(kbd.Row(answer, skip))
+	return kbd
+}
+
+// CategoryKeyboard returns the inline keyboard for a voting category in task_02.
+// Each button carries callback data "categoryID:optionID" routed via "\ftask02:choice".
+func CategoryKeyboard(task *config.Task, catIdx int) *tele.ReplyMarkup {
+	cat := task.Subtask.Categories[catIdx]
+	kbd := &tele.ReplyMarkup{}
+	buttons := make([]tele.Row, 0, len(cat.Options))
+	for _, opt := range cat.Options {
+		payload := cat.ID + ":" + opt.ID
+		btn := kbd.Data(opt.Label, "task02:choice", payload)
+		buttons = append(buttons, kbd.Row(btn))
+	}
+	kbd.Inline(buttons...)
 	return kbd
 }

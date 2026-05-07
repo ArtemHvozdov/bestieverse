@@ -1,6 +1,6 @@
 module github.com/ArtemHvozdov/bestieverse.git
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/joho/godotenv v1.5.1
@@ -18,6 +18,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sashabaranov/go-openai v1.41.2 // indirect
 	go.uber.org/mock v0.6.0 // indirect
+	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	gopkg.in/telebot.v3 v3.3.8 // indirect
 )

@@ -12,6 +12,8 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/telegram"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/game"
 	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task/subtask"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/lock"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	tele "gopkg.in/telebot.v3"
 )
@@ -36,6 +38,8 @@ func main() {
 	playerRepo := mysqlrepo.NewPlayerRepo(db)
 	playerStateRepo := mysqlrepo.NewPlayerStateRepo(db)
 	taskResponseRepo := mysqlrepo.NewTaskResponseRepo(db)
+	taskLockRepo := mysqlrepo.NewTaskLockRepo(db)
+	subtaskProgressRepo := mysqlrepo.NewSubtaskProgressRepo(db)
 
 	// Bot
 	bot, err := telegram.NewBot(cfg.Bot.Token, tele.Settings{
@@ -48,11 +52,27 @@ func main() {
 	// Media
 	mediaStorage := media.NewLocalStorage(cfg.Media.Path)
 
+	// Lock manager
+	lockManager := lock.NewManager(taskLockRepo, cfg.Timings.SubtaskLockTimeout)
+
 	// Task usecases
 	publisher := taskuc.NewPublisher(gameRepo, mediaStorage, bot, cfg, log)
 	requestAnswerer := taskuc.NewRequestAnswerer(taskResponseRepo, playerStateRepo, bot, &cfg.Messages, &cfg.Timings, log)
 	answerer := taskuc.NewAnswerer(taskResponseRepo, playerStateRepo, bot, &cfg.Messages, &cfg.Timings, log)
 	skipper := taskuc.NewSkipper(taskResponseRepo, playerRepo, bot, &cfg.Messages, &cfg.Timings, log)
+
+	// Subtask usecases
+	votingCollageHandler := subtask.NewVotingCollageHandler(
+		lockManager,
+		subtaskProgressRepo,
+		taskResponseRepo,
+		playerStateRepo,
+		mediaStorage,
+		bot,
+		&cfg.Messages,
+		&cfg.Timings,
+		log,
+	)
 
 	// Game usecases
 	creator := game.NewCreator(gameRepo, playerRepo, playerStateRepo, log)
@@ -62,7 +82,7 @@ func main() {
 
 	// Handlers
 	chatMemberHandler := handler.NewChatMemberHandler(creator, bot, cfg, log)
-	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, cfg, log)
+	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, cfg, log)
 	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, log)
 
 	// Middleware
@@ -82,6 +102,7 @@ func main() {
 	// Routes — task interactions
 	bot.Handle("\ftask:request", callbackHandler.OnTaskRequestAnswer, pc)
 	bot.Handle("\ftask:skip", callbackHandler.OnTaskSkip, pc)
+	bot.Handle("\ftask02:choice", callbackHandler.OnTask02Choice, pc)
 	bot.Handle(tele.OnText, messageHandler.OnMessage)
 	bot.Handle(tele.OnPhoto, messageHandler.OnMessage)
 	bot.Handle(tele.OnVideo, messageHandler.OnMessage)
