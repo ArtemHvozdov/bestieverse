@@ -569,4 +569,76 @@ FinalizeRouter.Finalize (scheduler)
         └─ Отправить game.final_message_2 + реферальная ссылка
 ```
 
+---
+
+## Деплой и тестирование
+
+### Архитектура Docker Compose
+
+Три независимых сервиса + MySQL:
+
+```
+services:
+  mysql      ← image: mysql:8.0, healthcheck: mysqladmin ping
+  bot        ← cmd/bot/Dockerfile,       depends_on: mysql (healthy)
+  notifier   ← cmd/notifier/Dockerfile,  depends_on: mysql (healthy)
+  scheduler  ← cmd/scheduler/Dockerfile, depends_on: mysql (healthy)
+```
+
+Каждый Dockerfile использует **multi-stage build**:
+- `builder` (`golang:1.22-alpine`): компилирует бинарник
+- `runtime` (`alpine:latest`): копирует бинарник + `content/` + `assets/`
+
+### Независимость сервисов
+
+Падение `notifier` не влияет на `bot` или `scheduler` — каждый сервис работает в отдельном контейнере и взаимодействует только через MySQL.
+
+```
+bot падает      → notifier и scheduler продолжают работу
+notifier падает → напоминания не отправляются, игра продолжается
+scheduler падает→ таски не публикуются и не финализируются; при рестарте scheduler
+                  сразу проверяет все активные игры и выполняет пропущенные события
+```
+
+### Тестовые команды (TEST_MODE=true)
+
+Регистрируются только если `cfg.TestMode == true`:
+
+| Команда | Действие |
+|---------|----------|
+| `/test_task_N` | Устанавливает `current_task_order = N-1`, вызывает `publisher.Publish` |
+| `/test_finalize_N` | Вызывает `FinalizeRouter.Finalize` для таски N немедленно |
+| `/test_notify` | Вызывает `ReminderSender.SendReminders` немедленно |
+| `/test_state` | Отправляет JSON-дамп: game + players + player_states + последние ответы |
+| `/test_reset` | Удаляет игру через `gameRepo.Delete` — CASCADE удаляет все связанные записи |
+
+### Стратегия тестирования
+
+| Уровень | Инструменты | Покрытие |
+|---------|-------------|----------|
+| Unit | `testify` + `gomock` | Все usecase-и |
+| Integration | Реальная тестовая БД (docker-compose.test.yml, порт 3307) | Жизненный цикл игры, таски |
+
+**Запуск unit-тестов:**
+```
+make test              # go test ./... -count=1 -race
+```
+
+**Запуск интеграционных тестов:**
+```
+make test-integration  # поднимает mysql_test, запускает _test/integration/..., гасит
+```
+
+Интеграционные тесты используют build tag `//go:build integration` — они исключены из `make test` и запускаются только через `make test-integration`.
+
+### Таблица тест-кейсов
+
+| TC | Тип | Описание |
+|----|-----|----------|
+| TestCreateAndJoin | Integration | Создание игры + присоединение 3 игроков, проверка БД |
+| TestStartGame | Integration | Запуск игры: status=active, появляется в GetAllActive |
+| TestAnswerTask | Integration | Публикация ответа на таску, CountAnsweredByTask=1 |
+| TestSkipTask | Integration | 3 пропуска, skip_count=3 в БД |
+| TestFinalizeText | Integration | Создание task_result с type=text, проверка GetByTask |
+
 `task_result` создаётся в `completeAdminTask` (поле `image_generated: true`), а не в `OpenAICollageFinalizer.Finalize`. Финализатор только верифицирует его наличие, что защищает от ситуации, когда scheduler пытается финализировать до того, как админ ответил.

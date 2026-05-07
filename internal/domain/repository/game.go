@@ -17,4 +17,5 @@ type GameRepository interface {
 	SetActivePollID(ctx context.Context, id uint64, pollID string) error
 	GetAllActive(ctx context.Context) ([]*entity.Game, error)
 	SetFinished(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, id uint64) error
 }

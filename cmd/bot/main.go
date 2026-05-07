@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
@@ -12,7 +13,9 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/openai"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/telegram"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/game"
+	notifuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/notification"
 	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task/finalize"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task/subtask"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/lock"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
@@ -42,6 +45,7 @@ func main() {
 	taskResultRepo := mysqlrepo.NewTaskResultRepo(db)
 	taskLockRepo := mysqlrepo.NewTaskLockRepo(db)
 	subtaskProgressRepo := mysqlrepo.NewSubtaskProgressRepo(db)
+	notifRepo := mysqlrepo.NewNotificationRepo(db)
 
 	// Bot
 	bot, err := telegram.NewBot(cfg.Bot.Token, tele.Settings{
@@ -154,6 +158,38 @@ func main() {
 	bot.Handle(tele.OnVoice, messageHandler.OnMessage)
 	bot.Handle(tele.OnVideoNote, messageHandler.OnMessage)
 	bot.Handle(tele.OnDocument, messageHandler.OnMessage)
+
+	if cfg.TestMode {
+		finalizeRouter := finalize.NewFinalizeRouter(
+			taskResponseRepo,
+			gameRepo,
+			bot,
+			mediaStorage,
+			cfg,
+			log,
+			finalize.NewTextFinalizer(bot),
+			finalize.NewPredictionsFinalizer(playerRepo, taskResultRepo, bot),
+			finalize.NewWhoIsWhoFinalizer(playerRepo, taskResultRepo, bot),
+			finalize.NewCollageFinalizer(taskResultRepo, mediaStorage, bot, log),
+			finalize.NewOpenAICollageFinalizer(taskResultRepo, bot, log),
+		)
+		reminderSender := notifuc.NewReminderSender(gameRepo, notifRepo, bot, cfg, log)
+		testHandler := handler.NewTestCommandsHandler(
+			gameRepo, playerRepo, playerStateRepo, taskResponseRepo,
+			publisher, finalizeRouter, reminderSender, bot, cfg, log,
+		)
+
+		for i := 1; i <= 12; i++ {
+			n := i
+			bot.Handle(fmt.Sprintf("/test_task_%d", n), testHandler.OnTestTask)
+			bot.Handle(fmt.Sprintf("/test_finalize_%d", n), testHandler.OnTestFinalize)
+		}
+		bot.Handle("/test_notify", testHandler.OnTestNotify)
+		bot.Handle("/test_state", testHandler.OnTestState)
+		bot.Handle("/test_reset", testHandler.OnTestReset)
+
+		log.Warn().Msg("TEST_MODE enabled: test commands registered")
+	}
 
 	log.Info().Msg("bot started")
 	bot.Start()

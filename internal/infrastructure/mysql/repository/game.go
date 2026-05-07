@@ -100,6 +100,14 @@ func (r *GameRepo) GetAllActive(ctx context.Context) ([]*entity.Game, error) {
 	return scanGames(rows)
 }
 
+func (r *GameRepo) Delete(ctx context.Context, id uint64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM games WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("mysql/game.Delete: %w", err)
+	}
+	return nil
+}
+
 func (r *GameRepo) SetFinished(ctx context.Context, id uint64) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE games SET status = 'finished', finished_at = NOW() WHERE id = ?`, id,

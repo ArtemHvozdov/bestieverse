@@ -143,3 +143,15 @@ func (r *MockGameRepositoryMockRecorder) SetFinished(ctx, id any) *gomock.Call {
 	r.mock.ctrl.T.Helper()
 	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "SetFinished", reflect.TypeOf((*MockGameRepository)(nil).SetFinished), ctx, id)
 }
+
+func (m *MockGameRepository) Delete(ctx context.Context, id uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (r *MockGameRepositoryMockRecorder) Delete(ctx, id any) *gomock.Call {
+	r.mock.ctrl.T.Helper()
+	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "Delete", reflect.TypeOf((*MockGameRepository)(nil).Delete), ctx, id)
+}
