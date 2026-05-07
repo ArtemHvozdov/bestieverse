@@ -39,6 +39,9 @@ type Messages struct {
 	Task12OnlyAdmin      string   `yaml:"task12_only_admin"`
 	Task12AwaitingAnswer []string `yaml:"task12_awaiting_answer"`
 	Task12Reply          []string `yaml:"task12_reply"`
+
+	MemeVoiceoverAnnounce string   `yaml:"meme_voiceover_announce"`
+	MemeVoiceoverDone     []string `yaml:"meme_voiceover_done"`
 }
 
 // Random returns a uniformly random element from variants.
