@@ -59,7 +59,7 @@ func main() {
 		log,
 		finalize.NewTextFinalizer(bot),
 		finalize.NewPredictionsFinalizer(playerRepo, taskResultRepo, bot),
-		finalize.NewWhoIsWhoFinalizer(taskResultRepo, bot),
+		finalize.NewWhoIsWhoFinalizer(playerRepo, taskResultRepo, bot),
 		finalize.NewCollageFinalizer(taskResultRepo, mediaStorage, bot, log),
 		finalize.NewOpenAICollageFinalizer(taskResultRepo, bot),
 	)

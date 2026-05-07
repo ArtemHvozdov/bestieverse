@@ -21,6 +21,7 @@ type CallbackHandler struct {
 	requestAnswerer      *task.RequestAnswerer
 	skipper              *task.Skipper
 	votingCollageHandler *subtask.VotingCollageHandler
+	whoIsWhoHandler      *subtask.WhoIsWhoHandler
 	cfg                  *config.Config
 	log                  zerolog.Logger
 }
@@ -32,6 +33,7 @@ func NewCallbackHandler(
 	requestAnswerer *task.RequestAnswerer,
 	skipper *task.Skipper,
 	votingCollageHandler *subtask.VotingCollageHandler,
+	whoIsWhoHandler *subtask.WhoIsWhoHandler,
 	cfg *config.Config,
 	log zerolog.Logger,
 ) *CallbackHandler {
@@ -42,6 +44,7 @@ func NewCallbackHandler(
 		requestAnswerer:      requestAnswerer,
 		skipper:              skipper,
 		votingCollageHandler: votingCollageHandler,
+		whoIsWhoHandler:      whoIsWhoHandler,
 		cfg:                  cfg,
 		log:                  log,
 	}
@@ -90,6 +93,9 @@ func (h *CallbackHandler) OnTaskRequestAnswer(c tele.Context) error {
 	if t.Subtask != nil && t.Subtask.Type == "voting_collage" {
 		return h.votingCollageHandler.HandleRequestAnswer(context.Background(), g, p, t)
 	}
+	if t.Summary.Type == "who_is_who_results" {
+		return h.whoIsWhoHandler.HandleRequestAnswer(context.Background(), g, p, t)
+	}
 	return h.requestAnswerer.RequestAnswer(context.Background(), g, p, t)
 }
 
@@ -100,6 +106,24 @@ func (h *CallbackHandler) OnTaskSkip(c tele.Context) error {
 	g := c.Get("game").(*entity.Game)
 	p := c.Get("player").(*entity.Player)
 	return h.skipper.Skip(context.Background(), g, p, taskID)
+}
+
+// OnTask04PlayerChoice handles a player selection in the who_is_who subtask.
+// c.Data() contains "questionID:telegramUserID".
+func (h *CallbackHandler) OnTask04PlayerChoice(c tele.Context) error {
+	g := c.Get("game").(*entity.Game)
+	p := c.Get("player").(*entity.Player)
+	t := h.cfg.TaskByID("task_04")
+	if t == nil {
+		h.log.Warn().Msg("task04:player callback but task_04 not found in config")
+		return nil
+	}
+	questionID, chosenUID, err := subtask.ParsePlayerChoice(c.Data())
+	if err != nil {
+		h.log.Warn().Err(err).Str("data", c.Data()).Msg("task04:player: invalid data")
+		return nil
+	}
+	return h.whoIsWhoHandler.HandlePlayerChoice(context.Background(), g, p, t, questionID, chosenUID)
 }
 
 // OnTask02Choice handles a category option selection in the voting_collage subtask.

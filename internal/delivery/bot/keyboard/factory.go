@@ -1,7 +1,10 @@
 package keyboard
 
 import (
+	"strconv"
+
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -38,6 +41,24 @@ func TaskKeyboard(taskID string) *tele.ReplyMarkup {
 	answer := kbd.Data("Хочу відповісти ✍️", "task:request", taskID)
 	skip := kbd.Data("Пропустити ⏭️", "task:skip", taskID)
 	kbd.Inline(kbd.Row(answer, skip))
+	return kbd
+}
+
+// PlayerSelectionKeyboard returns the inline keyboard for player selection in task_04.
+// Each button carries callback data "questionID:telegramUserID" routed via "\ftask04:player".
+func PlayerSelectionKeyboard(players []*entity.Player, questionID string) *tele.ReplyMarkup {
+	kbd := &tele.ReplyMarkup{}
+	buttons := make([]tele.Row, 0, len(players))
+	for _, p := range players {
+		label := p.FirstName
+		if p.Username != "" {
+			label = "@" + p.Username
+		}
+		payload := questionID + ":" + strconv.FormatInt(p.TelegramUserID, 10)
+		btn := kbd.Data(label, "task04:player", payload)
+		buttons = append(buttons, kbd.Row(btn))
+	}
+	kbd.Inline(buttons...)
 	return kbd
 }
 

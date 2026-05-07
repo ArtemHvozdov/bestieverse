@@ -73,6 +73,17 @@ func main() {
 		&cfg.Timings,
 		log,
 	)
+	whoIsWhoHandler := subtask.NewWhoIsWhoHandler(
+		lockManager,
+		subtaskProgressRepo,
+		taskResponseRepo,
+		playerStateRepo,
+		playerRepo,
+		bot,
+		&cfg.Messages,
+		&cfg.Timings,
+		log,
+	)
 
 	// Game usecases
 	creator := game.NewCreator(gameRepo, playerRepo, playerStateRepo, log)
@@ -82,7 +93,7 @@ func main() {
 
 	// Handlers
 	chatMemberHandler := handler.NewChatMemberHandler(creator, bot, cfg, log)
-	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, cfg, log)
+	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, whoIsWhoHandler, cfg, log)
 	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, log)
 
 	// Middleware
@@ -103,6 +114,7 @@ func main() {
 	bot.Handle("\ftask:request", callbackHandler.OnTaskRequestAnswer, pc)
 	bot.Handle("\ftask:skip", callbackHandler.OnTaskSkip, pc)
 	bot.Handle("\ftask02:choice", callbackHandler.OnTask02Choice, pc)
+	bot.Handle("\ftask04:player", callbackHandler.OnTask04PlayerChoice, pc)
 	bot.Handle(tele.OnText, messageHandler.OnMessage)
 	bot.Handle(tele.OnPhoto, messageHandler.OnMessage)
 	bot.Handle(tele.OnVideo, messageHandler.OnMessage)
