@@ -98,6 +98,30 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 				return fmt.Errorf("task.Publish: set active poll id: %w", err)
 			}
 		}
+
+	case "admin_only":
+		if len(task.Messages) == 0 {
+			return fmt.Errorf("task.Publish: task %s has no messages", task.ID)
+		}
+		// First message: animation/photo with text
+		msg0 := task.Messages[0]
+		if msg0.MediaFile != "" {
+			if anim, err := p.media.GetAnimation(msg0.MediaFile); err == nil {
+				anim.Caption = msg0.Text
+				p.sender.Send(chat, anim, formatter.ParseMode) //nolint:errcheck
+			} else {
+				p.sender.Send(chat, msg0.Text, formatter.ParseMode) //nolint:errcheck
+			}
+		} else {
+			p.sender.Send(chat, msg0.Text, formatter.ParseMode) //nolint:errcheck
+		}
+		// Second message with task keyboard after TaskInfoInterval
+		if len(task.Messages) > 1 {
+			time.Sleep(p.cfg.Timings.TaskInfoInterval)
+			msg1 := task.Messages[1]
+			kbd := buildTaskKeyboard(task.ID)
+			p.sender.Send(chat, msg1.Text, formatter.ParseMode, kbd) //nolint:errcheck
+		}
 	}
 
 	p.log.Info().

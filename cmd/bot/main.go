@@ -9,6 +9,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/media"
 	mysqldb "github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/mysql"
 	mysqlrepo "github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/mysql/repository"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/openai"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/telegram"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/game"
 	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
@@ -52,6 +53,9 @@ func main() {
 
 	// Media
 	mediaStorage := media.NewLocalStorage(cfg.Media.Path)
+
+	// OpenAI client
+	openaiClient := openai.NewClient(cfg.OpenAI.APIKey, cfg.OpenAI.Model)
 
 	// Lock manager
 	lockManager := lock.NewManager(taskLockRepo, cfg.Timings.SubtaskLockTimeout)
@@ -97,6 +101,17 @@ func main() {
 		log,
 	)
 	pollHandler := subtask.NewPollHandler(gameRepo, taskResultRepo, bot, cfg, log)
+	adminOnlyHandler := subtask.NewAdminOnlyHandler(
+		subtaskProgressRepo,
+		taskResponseRepo,
+		taskResultRepo,
+		playerStateRepo,
+		openaiClient,
+		bot,
+		&cfg.Messages,
+		&cfg.Timings,
+		log,
+	)
 
 	// Game usecases
 	creator := game.NewCreator(gameRepo, playerRepo, playerStateRepo, log)
@@ -106,8 +121,8 @@ func main() {
 
 	// Handlers
 	chatMemberHandler := handler.NewChatMemberHandler(creator, bot, cfg, log)
-	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, whoIsWhoHandler, memeVoiceoverHandler, cfg, log)
-	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, memeVoiceoverHandler, cfg, log)
+	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, whoIsWhoHandler, memeVoiceoverHandler, adminOnlyHandler, cfg, log)
+	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, memeVoiceoverHandler, adminOnlyHandler, cfg, log)
 	pollAnswerHandler := handler.NewPollAnswerHandler(pollHandler, log)
 
 	// Middleware
@@ -130,6 +145,7 @@ func main() {
 	bot.Handle("\ftask02:choice", callbackHandler.OnTask02Choice, pc)
 	bot.Handle("\ftask04:player", callbackHandler.OnTask04PlayerChoice, pc)
 	bot.Handle("\ftask10:meme_request", callbackHandler.OnTask10MemeRequest, pc)
+	bot.Handle("\ftask12:question", callbackHandler.OnTask12Question, pc)
 	bot.Handle(tele.OnPoll, pollAnswerHandler.OnPoll)
 	bot.Handle(tele.OnText, messageHandler.OnMessage)
 	bot.Handle(tele.OnPhoto, messageHandler.OnMessage)

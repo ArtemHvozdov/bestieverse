@@ -62,6 +62,15 @@ func PlayerSelectionKeyboard(players []*entity.Player, questionID string) *tele.
 	return kbd
 }
 
+// Task12QuestionKeyboard returns the inline keyboard with a single answer button for task_12.
+// Callback data is the question ID, routed via "\ftask12:question".
+func Task12QuestionKeyboard(question *config.TaskQuestion) *tele.ReplyMarkup {
+	kbd := &tele.ReplyMarkup{}
+	btn := kbd.Data(question.ButtonLabel, "task12:question", question.ID)
+	kbd.Inline(kbd.Row(btn))
+	return kbd
+}
+
 // CategoryKeyboard returns the inline keyboard for a voting category in task_02.
 // Each button carries callback data "categoryID:optionID" routed via "\ftask02:choice".
 func CategoryKeyboard(task *config.Task, catIdx int) *tele.ReplyMarkup {

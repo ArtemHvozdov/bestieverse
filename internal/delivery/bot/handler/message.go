@@ -20,6 +20,7 @@ type MessageHandler struct {
 	playerStateRepo      repository.PlayerStateRepository
 	answerer             *task.Answerer
 	memeVoiceoverHandler *subtask.MemeVoiceoverHandler
+	adminOnlyHandler     *subtask.AdminOnlyHandler
 	cfg                  *config.Config
 	log                  zerolog.Logger
 }
@@ -30,6 +31,7 @@ func NewMessageHandler(
 	playerStateRepo repository.PlayerStateRepository,
 	answerer *task.Answerer,
 	memeVoiceoverHandler *subtask.MemeVoiceoverHandler,
+	adminOnlyHandler *subtask.AdminOnlyHandler,
 	cfg *config.Config,
 	log zerolog.Logger,
 ) *MessageHandler {
@@ -39,6 +41,7 @@ func NewMessageHandler(
 		playerStateRepo:      playerStateRepo,
 		answerer:             answerer,
 		memeVoiceoverHandler: memeVoiceoverHandler,
+		adminOnlyHandler:     adminOnlyHandler,
 		cfg:                  cfg,
 		log:                  log,
 	}
@@ -73,6 +76,16 @@ func (h *MessageHandler) OnMessage(c tele.Context) error {
 			return nil
 		}
 		return h.memeVoiceoverHandler.HandleAnswer(ctx, game, player, t, c.Message())
+	}
+
+	if strings.HasSuffix(state.TaskID, ":admin") {
+		baseTaskID := strings.TrimSuffix(state.TaskID, ":admin")
+		t := h.cfg.TaskByID(baseTaskID)
+		if t == nil {
+			h.log.Warn().Str("task_id", baseTaskID).Msg("admin_only: task not found in config")
+			return nil
+		}
+		return h.adminOnlyHandler.HandleAnswer(ctx, game, player, t, c.Message())
 	}
 
 	return h.answerer.Answer(ctx, game, player, c.Message())

@@ -23,6 +23,7 @@ type CallbackHandler struct {
 	votingCollageHandler *subtask.VotingCollageHandler
 	whoIsWhoHandler      *subtask.WhoIsWhoHandler
 	memeVoiceoverHandler *subtask.MemeVoiceoverHandler
+	adminOnlyHandler     *subtask.AdminOnlyHandler
 	cfg                  *config.Config
 	log                  zerolog.Logger
 }
@@ -36,6 +37,7 @@ func NewCallbackHandler(
 	votingCollageHandler *subtask.VotingCollageHandler,
 	whoIsWhoHandler *subtask.WhoIsWhoHandler,
 	memeVoiceoverHandler *subtask.MemeVoiceoverHandler,
+	adminOnlyHandler *subtask.AdminOnlyHandler,
 	cfg *config.Config,
 	log zerolog.Logger,
 ) *CallbackHandler {
@@ -48,6 +50,7 @@ func NewCallbackHandler(
 		votingCollageHandler: votingCollageHandler,
 		whoIsWhoHandler:      whoIsWhoHandler,
 		memeVoiceoverHandler: memeVoiceoverHandler,
+		adminOnlyHandler:     adminOnlyHandler,
 		cfg:                  cfg,
 		log:                  log,
 	}
@@ -99,6 +102,9 @@ func (h *CallbackHandler) OnTaskRequestAnswer(c tele.Context) error {
 	if t.Summary.Type == "who_is_who_results" {
 		return h.whoIsWhoHandler.HandleRequestAnswer(context.Background(), g, p, t)
 	}
+	if t.Type == "admin_only" {
+		return h.adminOnlyHandler.HandleRequestAnswer(context.Background(), g, p, t)
+	}
 	return h.requestAnswerer.RequestAnswer(context.Background(), g, p, t)
 }
 
@@ -145,6 +151,19 @@ func (h *CallbackHandler) OnTask02Choice(c tele.Context) error {
 		return nil
 	}
 	return h.votingCollageHandler.HandleCategoryChoice(context.Background(), g, p, t, categoryID, optionID)
+}
+
+// OnTask12Question handles the admin's question button press in task_12.
+// c.Data() contains the questionID.
+func (h *CallbackHandler) OnTask12Question(c tele.Context) error {
+	g := c.Get("game").(*entity.Game)
+	p := c.Get("player").(*entity.Player)
+	t := h.cfg.TaskByID("task_12")
+	if t == nil {
+		h.log.Warn().Msg("task12:question callback but task_12 not found in config")
+		return nil
+	}
+	return h.adminOnlyHandler.HandleButtonPress(context.Background(), g, p, t, c.Data())
 }
 
 // OnTask10MemeRequest handles the "Хочу озвучити" button press for the meme_voiceover subtask.

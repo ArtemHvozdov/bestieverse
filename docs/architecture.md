@@ -498,3 +498,75 @@ scheduler → task/publish (poll_then_task)
 4. При **всех 0 голосов** — то же правило: первая опция (индекс 0)
 
 Это гарантирует детерминированный результат без случайности.
+
+---
+
+## Таска 12: admin_only и финал игры
+
+### Почему только один игрок (админ) отвечает
+
+Таска 12 (`admin_only`) — финальная задача игры. Только один человек (создатель игры, `game.admin_user_id`) агрегирует мнения команды и отвечает от её имени. Бот проверяет `player.TelegramUserID == game.AdminUserID` при каждом нажатии «Хочу відповісти»; остальным отправляется сообщение `task12_only_admin` с автоудалением.
+
+### Схема взаимодействия
+
+```
+Admin нажимает "Хочу відповісти"
+    │
+    ├─ HandleRequestAnswer
+    │   ├─ Проверка admin
+    │   ├─ Проверка existing response
+    │   ├─ Создать/загрузить subtask_progress
+    │   ├─ playerStateRepo.Upsert(awaiting_answer, "task_12:admin")
+    │   └─ Отправить Questions[0].Text + Task12QuestionKeyboard
+    │
+Admin нажимает кнопку (ButtonLabel)  ← callback "\ftask12:question"
+    │
+    └─ HandleButtonPress
+        └─ Отправить task12_awaiting_answer (не удалять)
+    │
+Admin отправляет текст  ← message handler (суффикс ":admin")
+    │
+    └─ HandleAnswer
+        ├─ Загрузить progress
+        ├─ Сохранить answers[questionID] = msg.Text
+        ├─ Удалить сообщение-вопрос (сохранённый q_msg_id)
+        ├─ Оставить ответ в чате
+        ├─ Отправить task12_reply
+        │
+        ├─ Если остались вопросы → Следующий вопрос + обновить q_msg_id
+        │
+        └─ Если все вопросы → completeAdminTask
+```
+
+### Как ответы попадают в OpenAI prompt через Go-шаблон
+
+Ответы хранятся в `subtask_progress.answers_data` как `{"answers": {"city": "...", ...}, "q_msg_id": N}`. При завершении `completeAdminTask` рендерит `task.OpenAI.PromptTemplate` через `formatter.RenderTemplate` с данными:
+
+```go
+struct{ Answers map[string]string }{ Answers: answers }
+```
+
+В YAML-шаблоне используется синтаксис Go text/template:
+```
+{{index .Answers "city"}}
+{{index .Answers "concert"}}
+```
+
+### Финальный flow
+
+```
+completeAdminTask завершена
+    │
+FinalizeRouter.Finalize (scheduler)
+    │
+    ├─ OpenAICollageFinalizer.Finalize
+    │   └─ taskResultRepo.GetByTask → проверяет что коллаж уже сгенерирован
+    │
+    └─ r.finishGame (task.Order+1 == nil — нет следующей таски)
+        ├─ gameRepo.SetFinished
+        ├─ Отправить game.final_message_1 (GIF)
+        ├─ time.Sleep(TaskInfoInterval)
+        └─ Отправить game.final_message_2 + реферальная ссылка
+```
+
+`task_result` создаётся в `completeAdminTask` (поле `image_generated: true`), а не в `OpenAICollageFinalizer.Finalize`. Финализатор только верифицирует его наличие, что защищает от ситуации, когда scheduler пытается финализировать до того, как админ ответил.

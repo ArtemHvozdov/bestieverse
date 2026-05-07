@@ -61,7 +61,7 @@ func main() {
 		finalize.NewPredictionsFinalizer(playerRepo, taskResultRepo, bot),
 		finalize.NewWhoIsWhoFinalizer(playerRepo, taskResultRepo, bot),
 		finalize.NewCollageFinalizer(taskResultRepo, mediaStorage, bot, log),
-		finalize.NewOpenAICollageFinalizer(taskResultRepo, bot),
+		finalize.NewOpenAICollageFinalizer(taskResultRepo, bot, log),
 	)
 
 	log.Info().Msg("scheduler started")
