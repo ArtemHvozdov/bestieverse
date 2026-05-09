@@ -44,18 +44,21 @@ func NewSkipper(
 // Enforces the 3-skip-per-game limit. Sends the appropriate remaining-skips message.
 func (s *Skipper) Skip(ctx context.Context, game *entity.Game, player *entity.Player, taskID string) error {
 	chat := &tele.Chat{ID: game.ChatID}
+	mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
+	mentionData := struct{ Mention string }{Mention: mention}
 
 	existing, err := s.taskResponseRepo.GetByPlayerAndTask(ctx, game.ID, player.ID, taskID)
 	if err != nil {
 		return fmt.Errorf("task.Skip: get response: %w", err)
 	}
 	if existing != nil {
-		var text string
+		var rawText string
 		if existing.Status == entity.ResponseAnswered {
-			text = config.Random(s.msgs.AlreadyAnswered)
+			rawText = config.Random(s.msgs.AlreadyAnswered)
 		} else {
-			text = s.msgs.AlreadySkipped
+			rawText = s.msgs.AlreadySkipped
 		}
+		text, _ := formatter.RenderTemplate(rawText, mentionData)
 		msg, _ := s.sender.Send(chat, text, formatter.ParseMode)
 		if msg != nil {
 			deleteAfter(s.sender, msg, s.timings.DeleteMessageDelay)
@@ -64,7 +67,8 @@ func (s *Skipper) Skip(ctx context.Context, game *entity.Game, player *entity.Pl
 	}
 
 	if player.SkipCount >= 3 {
-		msg, _ := s.sender.Send(chat, s.msgs.SkipNoRemaining, formatter.ParseMode)
+		text, _ := formatter.RenderTemplate(s.msgs.SkipNoRemaining, mentionData)
+		msg, _ := s.sender.Send(chat, text, formatter.ParseMode)
 		if msg != nil {
 			deleteAfter(s.sender, msg, s.timings.DeleteMessageDelay)
 		}
@@ -86,15 +90,16 @@ func (s *Skipper) Skip(ctx context.Context, game *entity.Game, player *entity.Pl
 	}
 
 	newSkipCount := player.SkipCount + 1
-	var text string
+	var rawText string
 	switch newSkipCount {
 	case 1:
-		text = s.msgs.SkipWithRemaining2
+		rawText = s.msgs.SkipWithRemaining2
 	case 2:
-		text = s.msgs.SkipWithRemaining1
+		rawText = s.msgs.SkipWithRemaining1
 	default:
-		text = s.msgs.SkipLast
+		rawText = s.msgs.SkipLast
 	}
+	text, _ := formatter.RenderTemplate(rawText, mentionData)
 
 	msg, _ := s.sender.Send(chat, text, formatter.ParseMode)
 	if msg != nil {

@@ -66,7 +66,9 @@ func (a *Answerer) Answer(ctx context.Context, game *entity.Game, player *entity
 	}
 
 	chat := &tele.Chat{ID: game.ChatID}
-	resp, _ := a.sender.Send(chat, a.msgs.AnswerAccepted, formatter.ParseMode)
+	mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
+	text, _ := formatter.RenderTemplate(a.msgs.AnswerAccepted, struct{ Mention string }{Mention: mention})
+	resp, _ := a.sender.Send(chat, text, formatter.ParseMode)
 	if resp != nil {
 		deleteAfter(a.sender, resp, a.timings.DeleteMessageDelay)
 	}

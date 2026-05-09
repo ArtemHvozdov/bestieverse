@@ -45,12 +45,16 @@ func NewRequestAnswerer(
 func (r *RequestAnswerer) RequestAnswer(ctx context.Context, game *entity.Game, player *entity.Player, task *config.Task) error {
 	chat := &tele.Chat{ID: game.ChatID}
 
+	mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
+	mentionData := struct{ Mention string }{Mention: mention}
+
 	existing, err := r.taskResponseRepo.GetByPlayerAndTask(ctx, game.ID, player.ID, task.ID)
 	if err != nil {
 		return fmt.Errorf("task.RequestAnswer: get response: %w", err)
 	}
 	if existing != nil {
-		msg, _ := r.sender.Send(chat, config.Random(r.msgs.AlreadyAnswered), formatter.ParseMode)
+		text, _ := formatter.RenderTemplate(config.Random(r.msgs.AlreadyAnswered), mentionData)
+		msg, _ := r.sender.Send(chat, text, formatter.ParseMode)
 		if msg != nil {
 			deleteAfter(r.sender, msg, r.timings.DeleteMessageDelay)
 		}
@@ -67,7 +71,8 @@ func (r *RequestAnswerer) RequestAnswer(ctx context.Context, game *entity.Game, 
 		return fmt.Errorf("task.RequestAnswer: upsert state: %w", err)
 	}
 
-	msg, _ := r.sender.Send(chat, config.Random(r.msgs.AwaitingAnswer), formatter.ParseMode)
+	text, _ := formatter.RenderTemplate(config.Random(r.msgs.AwaitingAnswer), mentionData)
+	msg, _ := r.sender.Send(chat, text, formatter.ParseMode)
 	if msg != nil {
 		deleteAfter(r.sender, msg, r.timings.DeleteMessageDelay)
 	}
