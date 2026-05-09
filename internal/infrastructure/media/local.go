@@ -31,7 +31,7 @@ func (s *LocalStorage) GetFile(name string) (*tele.Document, error) {
 		return nil, err
 	}
 	f := tele.FromDisk(path)
-	doc := &tele.Document{File: f}
+	doc := &tele.Document{File: f, FileName: filepath.Base(path)}
 	return doc, nil
 }
 
@@ -51,7 +51,10 @@ func (s *LocalStorage) GetAnimation(name string) (*tele.Animation, error) {
 		return nil, err
 	}
 	f := tele.FromDisk(path)
-	anim := &tele.Animation{File: f}
+	// FileName must be set so that telebot propagates it into the multipart
+	// Content-Disposition header. Without it Telegram cannot identify the file
+	// type and stores the upload as a Document (shows as a file icon in chat).
+	anim := &tele.Animation{File: f, FileName: filepath.Base(path)}
 	return anim, nil
 }
 
