@@ -52,6 +52,7 @@ func main() {
 
 	finalizeRouter := finalize.NewFinalizeRouter(
 		taskResponseRepo,
+		taskResultRepo,
 		gameRepo,
 		bot,
 		mediaStorage,
@@ -66,7 +67,11 @@ func main() {
 
 	log.Info().Msg("scheduler started")
 
-	ticker := time.NewTicker(time.Minute)
+	// Run immediately on start to catch events that may have been missed during downtime,
+	// then poll every 15 seconds to keep timing error well below the shortest test interval.
+	tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, log)
+
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {

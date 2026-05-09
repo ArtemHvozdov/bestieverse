@@ -43,7 +43,8 @@ func main() {
 
 	log.Info().Msg("notifier started")
 
-	ticker := time.NewTicker(time.Minute)
+	// Poll every 15 seconds to keep timing error well below the shortest reminder interval.
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {

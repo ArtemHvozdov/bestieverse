@@ -163,6 +163,7 @@ func main() {
 	if cfg.TestMode {
 		finalizeRouter := finalize.NewFinalizeRouter(
 			taskResponseRepo,
+			taskResultRepo,
 			gameRepo,
 			bot,
 			mediaStorage,

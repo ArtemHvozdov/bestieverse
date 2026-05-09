@@ -30,6 +30,7 @@ func (s *stubFinalizer) Finalize(_ context.Context, _ *entity.Game, _ *config.Ta
 func makeRouter(
 	ctrl *gomock.Controller,
 	taskResponseRepo *mocks.MockTaskResponseRepository,
+	taskResultRepo *mocks.MockTaskResultRepository,
 	gameRepo *mocks.MockGameRepository,
 	sender *mockSender,
 	tasks []config.Task,
@@ -47,7 +48,7 @@ func makeRouter(
 		Timings: config.Timings{TaskInfoInterval: time.Millisecond},
 	}
 	log := zerolog.Nop()
-	return finalize.NewFinalizeRouter(taskResponseRepo, gameRepo, sender, noopMedia{}, cfg, log, finalizers...)
+	return finalize.NewFinalizeRouter(taskResponseRepo, taskResultRepo, gameRepo, sender, noopMedia{}, cfg, log, finalizers...)
 }
 
 func TestRouter_NoResponses_SendsNaAnswers(t *testing.T) {
@@ -55,6 +56,7 @@ func TestRouter_NoResponses_SendsNaAnswers(t *testing.T) {
 	defer ctrl.Finish()
 
 	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	sender := &mockSender{}
 	stub := &stubFinalizer{summaryType: "text"}
@@ -62,9 +64,10 @@ func TestRouter_NoResponses_SendsNaAnswers(t *testing.T) {
 	game := &entity.Game{ID: 1, ChatID: 100}
 	task := &config.Task{ID: "task_01", Order: 1, Summary: config.TaskSummary{Type: "text"}}
 
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 
-	router := makeRouter(ctrl, taskResponseRepo, gameRepo, sender,
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
 		[]config.Task{{Order: 1}, {Order: 2}}, stub)
 
 	err := router.Finalize(context.Background(), game, task)
@@ -84,6 +87,7 @@ func TestRouter_DispatchesToFinalizer(t *testing.T) {
 	defer ctrl.Finish()
 
 	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	sender := &mockSender{}
 	stub := &stubFinalizer{summaryType: "text"}
@@ -92,9 +96,10 @@ func TestRouter_DispatchesToFinalizer(t *testing.T) {
 	task := &config.Task{ID: "task_01", Order: 1, Summary: config.TaskSummary{Type: "text"}}
 	responses := []*entity.TaskResponse{{ID: 1}}
 
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(responses, nil)
 
-	router := makeRouter(ctrl, taskResponseRepo, gameRepo, sender,
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
 		[]config.Task{{Order: 1}, {Order: 2}}, stub)
 
 	err := router.Finalize(context.Background(), game, task)
@@ -111,6 +116,7 @@ func TestRouter_UnknownSummaryType_ReturnsError(t *testing.T) {
 	defer ctrl.Finish()
 
 	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	sender := &mockSender{}
 
@@ -118,9 +124,10 @@ func TestRouter_UnknownSummaryType_ReturnsError(t *testing.T) {
 	task := &config.Task{ID: "task_01", Order: 1, Summary: config.TaskSummary{Type: "unknown_type"}}
 	responses := []*entity.TaskResponse{{ID: 1}}
 
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(responses, nil)
 
-	router := makeRouter(ctrl, taskResponseRepo, gameRepo, sender, []config.Task{{Order: 1}, {Order: 2}})
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender, []config.Task{{Order: 1}, {Order: 2}})
 
 	err := router.Finalize(context.Background(), game, task)
 	if err == nil {
@@ -136,6 +143,7 @@ func TestRouter_LastTask_CallsSetFinished(t *testing.T) {
 	defer ctrl.Finish()
 
 	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	sender := &mockSender{}
 	stub := &stubFinalizer{summaryType: "text"}
@@ -145,10 +153,11 @@ func TestRouter_LastTask_CallsSetFinished(t *testing.T) {
 	task := &config.Task{ID: "task_02", Order: 2, Summary: config.TaskSummary{Type: "text"}}
 	responses := []*entity.TaskResponse{{ID: 1}}
 
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(responses, nil)
 	gameRepo.EXPECT().SetFinished(gomock.Any(), game.ID).Return(nil)
 
-	router := makeRouter(ctrl, taskResponseRepo, gameRepo, sender,
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
 		[]config.Task{{Order: 1}, {Order: 2}}, stub)
 
 	err := router.Finalize(context.Background(), game, task)
@@ -162,6 +171,7 @@ func TestRouter_NotLastTask_DoesNotCallSetFinished(t *testing.T) {
 	defer ctrl.Finish()
 
 	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	sender := &mockSender{}
 	stub := &stubFinalizer{summaryType: "text"}
@@ -170,10 +180,11 @@ func TestRouter_NotLastTask_DoesNotCallSetFinished(t *testing.T) {
 	task := &config.Task{ID: "task_01", Order: 1, Summary: config.TaskSummary{Type: "text"}}
 	responses := []*entity.TaskResponse{{ID: 1}}
 
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(responses, nil)
 	// gameRepo.SetFinished should NOT be called.
 
-	router := makeRouter(ctrl, taskResponseRepo, gameRepo, sender,
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
 		[]config.Task{{Order: 1}, {Order: 2}}, stub)
 
 	err := router.Finalize(context.Background(), game, task)
@@ -187,6 +198,7 @@ func TestRouter_FinalizerError_Propagates(t *testing.T) {
 	defer ctrl.Finish()
 
 	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	sender := &mockSender{}
 	stub := &stubFinalizer{summaryType: "text", returnErr: errors.New("boom")}
@@ -195,13 +207,47 @@ func TestRouter_FinalizerError_Propagates(t *testing.T) {
 	task := &config.Task{ID: "task_01", Order: 1, Summary: config.TaskSummary{Type: "text"}}
 	responses := []*entity.TaskResponse{{ID: 1}}
 
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(responses, nil)
 
-	router := makeRouter(ctrl, taskResponseRepo, gameRepo, sender,
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
 		[]config.Task{{Order: 1}, {Order: 2}}, stub)
 
 	err := router.Finalize(context.Background(), game, task)
 	if err == nil {
 		t.Fatal("expected error to propagate")
+	}
+}
+
+func TestRouter_AlreadyFinalized_Skips(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
+	gameRepo := mocks.NewMockGameRepository(ctrl)
+	sender := &mockSender{}
+	stub := &stubFinalizer{summaryType: "text"}
+
+	game := &entity.Game{ID: 1, ChatID: 100}
+	task := &config.Task{ID: "task_01", Order: 1, Summary: config.TaskSummary{Type: "text"}}
+
+	// Existing result — task already finalized.
+	existing := &entity.TaskResult{ID: 1, GameID: game.ID, TaskID: task.ID}
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(existing, nil)
+	// GetAllByTask and finalizer.Finalize must NOT be called.
+
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
+		[]config.Task{{Order: 1}, {Order: 2}}, stub)
+
+	err := router.Finalize(context.Background(), game, task)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stub.called {
+		t.Error("finalizer should not be called for already-finalized task")
+	}
+	if len(sender.sent) != 0 {
+		t.Error("no message should be sent for already-finalized task")
 	}
 }

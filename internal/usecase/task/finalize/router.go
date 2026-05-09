@@ -17,6 +17,7 @@ import (
 type FinalizeRouter struct {
 	finalizers       map[string]TaskFinalizer
 	taskResponseRepo repository.TaskResponseRepository
+	taskResultRepo   repository.TaskResultRepository
 	gameRepo         repository.GameRepository
 	sender           Sender
 	media            media.Storage
@@ -26,6 +27,7 @@ type FinalizeRouter struct {
 
 func NewFinalizeRouter(
 	taskResponseRepo repository.TaskResponseRepository,
+	taskResultRepo repository.TaskResultRepository,
 	gameRepo repository.GameRepository,
 	sender Sender,
 	mediaStorage media.Storage,
@@ -36,6 +38,7 @@ func NewFinalizeRouter(
 	r := &FinalizeRouter{
 		finalizers:       make(map[string]TaskFinalizer, len(finalizers)),
 		taskResponseRepo: taskResponseRepo,
+		taskResultRepo:   taskResultRepo,
 		gameRepo:         gameRepo,
 		sender:           sender,
 		media:            mediaStorage,
@@ -50,6 +53,20 @@ func NewFinalizeRouter(
 
 // Finalize is the entry point called by the scheduler.
 func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *config.Task) error {
+	// Idempotency guard: skip if already finalized.
+	existing, err := r.taskResultRepo.GetByTask(ctx, game.ID, task.ID)
+	if err != nil {
+		return fmt.Errorf("finalize.Router: check existing result: %w", err)
+	}
+	if existing != nil {
+		r.log.Debug().
+			Int64("chat", game.ChatID).
+			Uint64("game", game.ID).
+			Str("task", task.ID).
+			Msg("task already finalized, skipping")
+		return nil
+	}
+
 	responses, err := r.taskResponseRepo.GetAllByTask(ctx, game.ID, task.ID)
 	if err != nil {
 		return fmt.Errorf("finalize.Router: get responses: %w", err)
