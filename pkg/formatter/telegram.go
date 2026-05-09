@@ -10,14 +10,14 @@ import (
 
 const ParseMode = tele.ModeHTML
 
-// Mention returns an HTML anchor tag that mentions a Telegram user.
-// If username is empty, firstName is used as the display name.
+// Mention returns a Telegram mention string.
+// If username is set, returns plain "@username" — Telegram auto-links it without underline styling.
+// If username is empty, returns an HTML anchor with firstName so the user is still clickable.
 func Mention(userID int64, username, firstName string) string {
-	name := firstName
 	if username != "" {
-		name = "@" + username
+		return "@" + username
 	}
-	return fmt.Sprintf(`<a href="tg://user?id=%d">%s</a>`, userID, name)
+	return fmt.Sprintf(`<a href="tg://user?id=%d">%s</a>`, userID, firstName)
 }
 
 // RenderTemplate executes a Go text/template with the provided data.

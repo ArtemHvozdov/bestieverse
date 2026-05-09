@@ -10,7 +10,7 @@ import (
 
 func TestMention_WithUsername(t *testing.T) {
 	result := formatter.Mention(123, "testuser", "Test")
-	assert.Equal(t, `<a href="tg://user?id=123">@testuser</a>`, result)
+	assert.Equal(t, "@testuser", result)
 }
 
 func TestMention_WithoutUsername(t *testing.T) {
