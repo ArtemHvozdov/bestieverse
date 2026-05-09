@@ -119,7 +119,7 @@ TEST_POLL_DURATION=1m
 Изменённые файлы: `internal/usecase/task/finalize/router.go`, `internal/usecase/task/finalize/router_test.go`, `cmd/scheduler/main.go`, `cmd/notifier/main.go`, `cmd/bot/main.go`.
 
 
-## Bug #9
+## Bug #9 [FIXED]
 **Симптом:** Вторая таска была опубликована без изображения(гифки), только текст. В логах не было записи о том, что вторая таска опубликована:
 ```
 bot-1  | 2026-05-09 10:29:34 WRN TEST_MODE enabled: test commands registered
@@ -136,6 +136,13 @@ bot-1  | 2026-05-09 10:37:11 INF voting_collage: all categories answered chat=-1
 
 Далее все таски публикуются, но в логах информации об этом.
 
+**Причина:** Два независимых наблюдения:
+
+1. **Опечатка в `task_02.yaml`**: поле `media_file` содержало `"tasks/tasks_02.gif"` (лишняя `s`), тогда как реальный файл называется `task_02.gif`. `LocalStorage.GetAnimation` выбрасывал ошибку "file not found", `publish.go` падал в fallback-ветку и отправлял только текст с клавиатурой без анимации.
+
+2. **«Нет логов» — ожидаемое поведение**: таска 1 публикуется ботом (`Starter.Start → publisher.Publish`), поэтому лог `task published` появляется в `bot-1`. Таски 2+ публикует `scheduler`, поэтому их логи идут в `scheduler-1`. Если пользователь смотрел только `bot-1` — логов планировщика он не видел.
+
+**Исправление:** Опечатка исправлена: `"tasks/tasks_02.gif"` → `"tasks/task_02.gif"` в `content/tasks/task_02.yaml`. Все остальные `media_file`-пути проверены — опечаток не найдено.
 
 
 ## Bug #10
