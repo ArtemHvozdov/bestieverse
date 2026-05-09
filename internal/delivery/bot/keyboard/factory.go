@@ -11,16 +11,17 @@ import (
 // JoinKeyboard returns the inline keyboard shown when the bot joins a chat.
 func JoinKeyboard(supportURL string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	join := kbd.Data("Приєднатися до гри 🎮", "game:join")
-	support := kbd.URL("Підтримка 💬", supportURL)
-	kbd.Inline(kbd.Row(join), kbd.Row(support))
+	join := kbd.Data("👉 Приєднатися до гри", "game_join")
+	support := kbd.URL("Техпідтримка", supportURL)
+	leave := kbd.Data("Вийти з гри", "game_leave")
+	kbd.Inline(kbd.Row(join), kbd.Row(support), kbd.Row(leave))
 	return kbd
 }
 
 // StartKeyboard returns the inline keyboard with the "Start game" button.
 func StartKeyboard() *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	start := kbd.Data("Розпочати гру 🚀", "game:start")
+	start := kbd.Data("Почати гру", "game_start")
 	kbd.Inline(kbd.Row(start))
 	return kbd
 }
@@ -28,8 +29,8 @@ func StartKeyboard() *tele.ReplyMarkup {
 // LeaveConfirmKeyboard returns the inline keyboard for leave confirmation.
 func LeaveConfirmKeyboard() *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	yes := kbd.Data("Так, виходжу 👋", "game:leave_confirm")
-	no := kbd.Data("Ні, залишаюсь 💕", "game:leave_cancel")
+	yes := kbd.Data("Точно вийти", "game_leave_confirm")
+	no := kbd.Data("Назад в гру", "game_leave_cancel")
 	kbd.Inline(kbd.Row(yes, no))
 	return kbd
 }
@@ -38,8 +39,8 @@ func LeaveConfirmKeyboard() *tele.ReplyMarkup {
 // taskID is passed as the callback payload; handlers receive it via c.Data().
 func TaskKeyboard(taskID string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task:request", taskID)
-	skip := kbd.Data("Пропустити ⏭️", "task:skip", taskID)
+	answer := kbd.Data("Хочу відповісти", "task_request", taskID)
+	skip := kbd.Data("Пропустити", "task_skip", taskID)
 	kbd.Inline(kbd.Row(answer, skip))
 	return kbd
 }
@@ -55,7 +56,7 @@ func PlayerSelectionKeyboard(players []*entity.Player, questionID string) *tele.
 			label = "@" + p.Username
 		}
 		payload := questionID + ":" + strconv.FormatInt(p.TelegramUserID, 10)
-		btn := kbd.Data(label, "task04:player", payload)
+		btn := kbd.Data(label, "task04_player", payload)
 		buttons = append(buttons, kbd.Row(btn))
 	}
 	kbd.Inline(buttons...)
@@ -66,7 +67,7 @@ func PlayerSelectionKeyboard(players []*entity.Player, questionID string) *tele.
 // Callback data is the question ID, routed via "\ftask12:question".
 func Task12QuestionKeyboard(question *config.TaskQuestion) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	btn := kbd.Data(question.ButtonLabel, "task12:question", question.ID)
+	btn := kbd.Data(question.ButtonLabel, "task12_question", question.ID)
 	kbd.Inline(kbd.Row(btn))
 	return kbd
 }
@@ -79,7 +80,7 @@ func CategoryKeyboard(task *config.Task, catIdx int) *tele.ReplyMarkup {
 	buttons := make([]tele.Row, 0, len(cat.Options))
 	for _, opt := range cat.Options {
 		payload := cat.ID + ":" + opt.ID
-		btn := kbd.Data(opt.Label, "task02:choice", payload)
+		btn := kbd.Data(opt.Label, "task02_choice", payload)
 		buttons = append(buttons, kbd.Row(btn))
 	}
 	kbd.Inline(buttons...)

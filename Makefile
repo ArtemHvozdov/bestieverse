@@ -33,6 +33,22 @@ docker-down:
 docker-build:
 	docker compose build
 
+.PHONY: docker-migrate
+docker-migrate:
+	docker compose run --rm migrate
+
+.PHONY: docker-clean
+docker-clean:
+	docker compose down -v --remove-orphans
+	docker system prune -f
+
+.PHONY: docker-restart
+docker-restart:
+	docker compose down -v --remove-orphans
+	docker system prune -f
+	docker compose build
+	docker compose up -d
+
 # ─── Migrations ───────────────────────────────────────────────────────────────
 .PHONY: migrate-up
 migrate-up:

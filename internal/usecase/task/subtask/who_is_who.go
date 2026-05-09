@@ -258,7 +258,7 @@ func buildPlayerSelectionKeyboard(players []*entity.Player, questionID string) *
 			label = "@" + p.Username
 		}
 		payload := questionID + ":" + strconv.FormatInt(p.TelegramUserID, 10)
-		btn := kbd.Data(label, "task04:player", payload)
+		btn := kbd.Data(label, "task04_player", payload)
 		buttons = append(buttons, kbd.Row(btn))
 	}
 	kbd.Inline(buttons...)

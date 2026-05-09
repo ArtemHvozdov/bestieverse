@@ -132,8 +132,8 @@ func determineWinner(pollResults []tele.PollOption, configOptions []config.PollO
 // buildPollTaskKeyboard constructs the inline keyboard for a poll follow-up task.
 func buildPollTaskKeyboard(taskID string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task:request", taskID)
-	skip := kbd.Data("Пропустити ⏭️", "task:skip", taskID)
+	answer := kbd.Data("Хочу відповісти ✍️", "task_request", taskID)
+	skip := kbd.Data("Пропустити ⏭️", "task_skip", taskID)
 	kbd.Inline(kbd.Row(answer, skip))
 	return kbd
 }
@@ -141,7 +141,7 @@ func buildPollTaskKeyboard(taskID string) *tele.ReplyMarkup {
 // buildMemeVoiceoverKeyboard constructs the keyboard for starting the meme voiceover subtask.
 func buildMemeVoiceoverKeyboard() *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	btn := kbd.Data("Хочу озвучити 🎤", "task10:meme_request")
+	btn := kbd.Data("Хочу озвучити 🎤", "task10_meme_request")
 	kbd.Inline(kbd.Row(btn))
 	return kbd
 }

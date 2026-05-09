@@ -330,7 +330,7 @@ func (h *AdminOnlyHandler) saveToTempFile(data []byte) (string, error) {
 // buildTask12QuestionKeyboard creates the inline keyboard with the single question button.
 func buildTask12QuestionKeyboard(q config.TaskQuestion) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	btn := kbd.Data(q.ButtonLabel, "task12:question", q.ID)
+	btn := kbd.Data(q.ButtonLabel, "task12_question", q.ID)
 	kbd.Inline(kbd.Row(btn))
 	return kbd
 }

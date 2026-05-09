@@ -1,0 +1,1 @@
+{"level":"fatal","error":"mysql.Open: ping: dial tcp [::1]:3306: connect: connection refused","time":"2026-05-08T01:09:37+03:00","message":"db connect"}

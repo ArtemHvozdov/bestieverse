@@ -131,25 +131,26 @@ func main() {
 
 	// Middleware
 	pc := botmw.PlayerCheck(gameRepo, playerRepo, bot, &cfg.Messages, &cfg.Timings, log)
+	pcStart := botmw.PlayerCheckForStart(gameRepo, playerRepo, log)
 
 	// Global middleware
 	bot.Use(botmw.Recover(log))
 
 	// Routes — game management
 	bot.Handle(tele.OnMyChatMember, chatMemberHandler.OnMyChatMember)
-	bot.Handle("\fgame:join", callbackHandler.OnJoin)
-	bot.Handle("\fgame:leave", callbackHandler.OnLeave, pc)
-	bot.Handle("\fgame:leave_confirm", callbackHandler.OnLeaveConfirm, pc)
-	bot.Handle("\fgame:leave_cancel", callbackHandler.OnLeaveCancel, pc)
-	bot.Handle("\fgame:start", callbackHandler.OnStart, pc)
+	bot.Handle("\fgame_join", callbackHandler.OnJoin)
+	bot.Handle("\fgame_leave", callbackHandler.OnLeave, pc)
+	bot.Handle("\fgame_leave_confirm", callbackHandler.OnLeaveConfirm, pc)
+	bot.Handle("\fgame_leave_cancel", callbackHandler.OnLeaveCancel, pc)
+	bot.Handle("\fgame_start", callbackHandler.OnStart, pcStart)
 
 	// Routes — task interactions
-	bot.Handle("\ftask:request", callbackHandler.OnTaskRequestAnswer, pc)
-	bot.Handle("\ftask:skip", callbackHandler.OnTaskSkip, pc)
-	bot.Handle("\ftask02:choice", callbackHandler.OnTask02Choice, pc)
-	bot.Handle("\ftask04:player", callbackHandler.OnTask04PlayerChoice, pc)
-	bot.Handle("\ftask10:meme_request", callbackHandler.OnTask10MemeRequest, pc)
-	bot.Handle("\ftask12:question", callbackHandler.OnTask12Question, pc)
+	bot.Handle("\ftask_request", callbackHandler.OnTaskRequestAnswer, pc)
+	bot.Handle("\ftask_skip", callbackHandler.OnTaskSkip, pc)
+	bot.Handle("\ftask02_choice", callbackHandler.OnTask02Choice, pc)
+	bot.Handle("\ftask04_player", callbackHandler.OnTask04PlayerChoice, pc)
+	bot.Handle("\ftask10_meme_request", callbackHandler.OnTask10MemeRequest, pc)
+	bot.Handle("\ftask12_question", callbackHandler.OnTask12Question, pc)
 	bot.Handle(tele.OnPoll, pollAnswerHandler.OnPoll)
 	bot.Handle(tele.OnText, messageHandler.OnMessage)
 	bot.Handle(tele.OnPhoto, messageHandler.OnMessage)

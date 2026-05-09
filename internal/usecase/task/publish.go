@@ -136,8 +136,8 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 // buildTaskKeyboard constructs the inline keyboard attached to a published task.
 func buildTaskKeyboard(taskID string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task:request", taskID)
-	skip := kbd.Data("Пропустити ⏭️", "task:skip", taskID)
+	answer := kbd.Data("Хочу відповісти ✍️", "task_request", taskID)
+	skip := kbd.Data("Пропустити ⏭️", "task_skip", taskID)
 	kbd.Inline(kbd.Row(answer, skip))
 	return kbd
 }

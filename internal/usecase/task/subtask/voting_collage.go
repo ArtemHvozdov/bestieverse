@@ -252,7 +252,7 @@ func buildCategoryKeyboard(task *config.Task, catIdx int) *tele.ReplyMarkup {
 	buttons := make([]tele.Row, 0, len(cat.Options))
 	for _, opt := range cat.Options {
 		payload := cat.ID + ":" + opt.ID
-		btn := kbd.Data(opt.Label, "task02:choice", payload)
+		btn := kbd.Data(opt.Label, "task02_choice", payload)
 		buttons = append(buttons, kbd.Row(btn))
 	}
 	kbd.Inline(buttons...)

@@ -17,6 +17,19 @@ services:
       retries: 10
     restart: unless-stopped
 
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations  # монтируем папку с миграциями
+    command:
+      - "-path=/migrations"
+      - "-database=mysql://${DB_USER}:${DB_PASSWORD}@tcp(mysql:3306)/${DB_NAME}"
+      - "up"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
   bot:
     build:
       context: .

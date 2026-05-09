@@ -1,4 +1,6 @@
 .env
+.claude
+bugs.md
 assets
 content
 reference
