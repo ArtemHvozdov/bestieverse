@@ -64,6 +64,11 @@ func (s *Starter) Start(ctx context.Context, game *entity.Game, player *entity.P
 		return nil
 	}
 
+	// Only pending games can be started.
+	if game.Status != entity.GamePending {
+		return nil
+	}
+
 	s.sender.Delete(startMsg) //nolint:errcheck
 
 	if err := s.gameRepo.UpdateStatus(ctx, game.ID, entity.GameActive); err != nil {

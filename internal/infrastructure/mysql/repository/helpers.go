@@ -13,3 +13,12 @@ func nullJSON(data json.RawMessage) sql.NullString {
 	}
 	return sql.NullString{String: string(data), Valid: true}
 }
+
+// scanNullJSON scans a nullable JSON column into json.RawMessage.
+// A NULL column value results in a nil RawMessage.
+func scanNullJSON(ns sql.NullString) json.RawMessage {
+	if !ns.Valid {
+		return nil
+	}
+	return json.RawMessage(ns.String)
+}

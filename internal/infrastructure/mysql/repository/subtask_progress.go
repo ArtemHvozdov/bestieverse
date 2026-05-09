@@ -37,13 +37,15 @@ func (r *SubtaskProgressRepo) Get(ctx context.Context, gameID, playerID uint64, 
 		gameID, playerID, taskID,
 	)
 	var p entity.SubtaskProgress
-	err := row.Scan(&p.ID, &p.GameID, &p.PlayerID, &p.TaskID, &p.QuestionIndex, &p.AnswersData, &p.UpdatedAt)
+	var answersData sql.NullString
+	err := row.Scan(&p.ID, &p.GameID, &p.PlayerID, &p.TaskID, &p.QuestionIndex, &answersData, &p.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("mysql/subtask_progress.Get: %w", err)
 	}
+	p.AnswersData = scanNullJSON(answersData)
 	return &p, nil
 }
 

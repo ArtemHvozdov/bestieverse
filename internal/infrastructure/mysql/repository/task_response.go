@@ -36,13 +36,15 @@ func (r *TaskResponseRepo) GetByPlayerAndTask(ctx context.Context, gameID, playe
 		gameID, playerID, taskID,
 	)
 	var resp entity.TaskResponse
-	err := row.Scan(&resp.ID, &resp.GameID, &resp.PlayerID, &resp.TaskID, &resp.Status, &resp.ResponseData, &resp.CreatedAt)
+	var responseData sql.NullString
+	err := row.Scan(&resp.ID, &resp.GameID, &resp.PlayerID, &resp.TaskID, &resp.Status, &responseData, &resp.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("mysql/task_response.GetByPlayerAndTask: %w", err)
 	}
+	resp.ResponseData = scanNullJSON(responseData)
 	return &resp, nil
 }
 
@@ -61,9 +63,11 @@ func (r *TaskResponseRepo) GetAllByTask(ctx context.Context, gameID uint64, task
 	var responses []*entity.TaskResponse
 	for rows.Next() {
 		var resp entity.TaskResponse
-		if err := rows.Scan(&resp.ID, &resp.GameID, &resp.PlayerID, &resp.TaskID, &resp.Status, &resp.ResponseData, &resp.CreatedAt); err != nil {
+		var responseData sql.NullString
+		if err := rows.Scan(&resp.ID, &resp.GameID, &resp.PlayerID, &resp.TaskID, &resp.Status, &responseData, &resp.CreatedAt); err != nil {
 			return nil, fmt.Errorf("mysql/task_response.GetAllByTask scan: %w", err)
 		}
+		resp.ResponseData = scanNullJSON(responseData)
 		responses = append(responses, &resp)
 	}
 	return responses, rows.Err()
