@@ -54,6 +54,8 @@ config.Load()
 | REMINDER_DELAY        | TEST_REMINDER_DELAY        | 12h / 30s |
 | POLL_DURATION         | TEST_POLL_DURATION         | 24h / 1m |
 
+Дополнительно при `TEST_MODE=true` команда `make docker-restart` автоматически удаляет директорию `DB_PATH` (bind mount с данными MySQL) перед перезапуском контейнеров. Это обеспечивает запуск с чистой, пустой базой данных при каждом перезапуске в режиме разработки. Таблицы воссоздаются сервисом `migrate` при старте.
+
 ### Логгер
 
 Пакет `pkg/logger` — тонкая обёртка над `zerolog`.

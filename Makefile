@@ -41,11 +41,22 @@ docker-migrate:
 docker-clean:
 	docker compose down -v --remove-orphans
 	docker system prune -f
+	@if [ "$(TEST_MODE)" = "true" ] && [ -n "$(DB_PATH)" ]; then \
+		echo "TEST_MODE=true: очищаем данные MySQL ($(DB_PATH))..."; \
+		rm -rf "$(DB_PATH)"; \
+		echo "Директория $(DB_PATH) очищена. \
+	fi
 
 .PHONY: docker-restart
 docker-restart:
 	docker compose down -v --remove-orphans
 	docker system prune -f
+	@if [ "$(TEST_MODE)" = "true" ] && [ -n "$(DB_PATH)" ]; then \
+		echo "TEST_MODE=true: очищаем данные MySQL ($(DB_PATH))..."; \
+		rm -rf "$(DB_PATH)"; \
+		mkdir -p "$(DB_PATH)"; \
+		echo "Директория $(DB_PATH) очищена. БД будет пересоздана заново."; \
+	fi
 	docker compose build
 	docker compose up -d
 
