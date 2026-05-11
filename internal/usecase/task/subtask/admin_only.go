@@ -11,6 +11,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -134,7 +135,7 @@ func (h *AdminOnlyHandler) HandleRequestAnswer(
 
 	h.log.Info().
 		Int64("chat", game.ChatID).
-		Int64("user", player.TelegramUserID).
+		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("admin_only: first question sent")
 
@@ -307,7 +308,7 @@ func (h *AdminOnlyHandler) completeAdminTask(
 
 	h.log.Info().
 		Int64("chat", game.ChatID).
-		Int64("user", player.TelegramUserID).
+		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("admin_only: task completed, collage generated")
 

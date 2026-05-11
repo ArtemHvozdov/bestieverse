@@ -8,6 +8,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -101,6 +102,6 @@ func (j *Joiner) Join(ctx context.Context, chatID int64, user tele.User) error {
 	text, _ := formatter.RenderTemplate(config.Random(j.msgs.JoinWelcome), struct{ Mention string }{Mention: mention})
 	j.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
 
-	j.log.Info().Int64("chat", chatID).Int64("user", user.ID).Str("username", user.Username).Msg("player joined")
+	j.log.Info().Int64("chat", chatID).Str("user", logger.UserValue(user.ID, user.Username)).Msg("player joined")
 	return nil
 }

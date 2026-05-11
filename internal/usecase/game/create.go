@@ -6,6 +6,7 @@ import (
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -77,8 +78,7 @@ func (c *Creator) Create(ctx context.Context, chatID int64, chatName string, adm
 
 	c.log.Info().
 		Int64("chat", chatID).
-		Int64("admin_id", adminUser.ID).
-		Str("admin", adminUser.Username).
+		Str("admin", logger.UserValue(adminUser.ID, adminUser.Username)).
 		Msg("game created")
 
 	return game, nil

@@ -11,6 +11,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/lock"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
@@ -130,7 +131,7 @@ func (h *WhoIsWhoHandler) HandleRequestAnswer(
 
 	h.log.Info().
 		Int64("chat", game.ChatID).
-		Int64("user", player.TelegramUserID).
+		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("who_is_who: lock acquired, first question sent")
 
@@ -232,7 +233,7 @@ func (h *WhoIsWhoHandler) HandlePlayerChoice(
 
 	h.log.Info().
 		Int64("chat", game.ChatID).
-		Int64("user", player.TelegramUserID).
+		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("who_is_who: all questions answered")
 

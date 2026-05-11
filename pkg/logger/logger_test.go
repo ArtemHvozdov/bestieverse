@@ -45,7 +45,19 @@ func TestWithUser_AddsFieldToOutput(t *testing.T) {
 
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
-	assert.Equal(t, "987654321:@testuser", entry["user"])
+	assert.Equal(t, "( 987654321 | @testuser)", entry["user"])
+}
+
+func TestWithUser_EmptyUsername(t *testing.T) {
+	buf := &bytes.Buffer{}
+	log := logger.NewWithWriter(buf, "debug")
+
+	userLog := logger.WithUser(log, 987654321, "")
+	userLog.Info().Msg("user test")
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+	assert.Equal(t, "( 987654321 | )", entry["user"])
 }
 
 func TestWithChat_WithUser_Combined(t *testing.T) {
@@ -58,5 +70,5 @@ func TestWithChat_WithUser_Combined(t *testing.T) {
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
 	assert.EqualValues(t, 111, entry["chat"])
-	assert.Equal(t, "222:@foo", entry["user"])
+	assert.Equal(t, "( 222 | @foo)", entry["user"])
 }

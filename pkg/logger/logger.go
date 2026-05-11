@@ -53,9 +53,19 @@ func WithChat(log zerolog.Logger, chatID int64) zerolog.Logger {
 	return log.With().Int64("chat", chatID).Logger()
 }
 
-// WithUser returns a child logger with the user field set as "id:@username".
+// WithUser returns a child logger with the user field set as "(id|@username)".
+// If username is empty, the format is "(id)".
 func WithUser(log zerolog.Logger, userID int64, username string) zerolog.Logger {
-	return log.With().Str("user", fmt.Sprintf("%d:%s", userID, username)).Logger()
+	return log.With().Str("user", UserValue(userID, username)).Logger()
+}
+
+// UserValue formats a user identifier as "(id|username)" or "(id)" when username is empty.
+// Use this when adding the user field inline to a log event.
+func UserValue(userID int64, username string) string {
+	if username == "" {
+		return fmt.Sprintf("(%d)", userID)
+	}
+	return fmt.Sprintf("( %d | %s)", userID, username)
 }
 
 func newConsoleWriter() zerolog.ConsoleWriter {

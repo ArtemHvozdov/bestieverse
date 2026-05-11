@@ -10,6 +10,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/media"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/lock"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
@@ -127,7 +128,7 @@ func (h *MemeVoiceoverHandler) HandleRequestAnswer(
 
 	h.log.Info().
 		Int64("chat", game.ChatID).
-		Int64("user", player.TelegramUserID).
+		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("meme_voiceover: lock acquired, first meme sent")
 
@@ -219,7 +220,7 @@ func (h *MemeVoiceoverHandler) HandleAnswer(
 
 	h.log.Info().
 		Int64("chat", game.ChatID).
-		Int64("user", player.TelegramUserID).
+		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("meme_voiceover: all memes voiced")
 
