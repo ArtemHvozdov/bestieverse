@@ -10,6 +10,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/media"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -88,7 +89,7 @@ func (s *Starter) Start(ctx context.Context, game *entity.Game, player *entity.P
 	// Message 2: schedule and rules
 	s.sender.Send(chat, s.cfg.Game.StartMessage2, formatter.ParseMode) //nolint:errcheck
 
-	s.log.Info().Int64("chat", game.ChatID).Uint64("game", game.ID).Msg("game started")
+	s.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Uint64("game", game.ID).Msg("game started")
 
 	if s.publisher != nil {
 		return s.publisher.Publish(ctx, game)

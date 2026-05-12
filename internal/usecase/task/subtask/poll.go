@@ -9,6 +9,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -79,7 +80,7 @@ func (h *PollHandler) HandlePollClosed(ctx context.Context, poll *tele.Poll) err
 	}
 
 	h.log.Info().
-		Int64("chat", game.ChatID).
+		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 		Uint64("game", game.ID).
 		Str("task", task.ID).
 		Str("winner", winner.ID).

@@ -7,6 +7,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 )
 
@@ -47,7 +48,7 @@ func (f *OpenAICollageFinalizer) Finalize(
 	}
 	if result == nil {
 		f.log.Error().
-			Int64("chat", game.ChatID).
+			Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 			Uint64("game", game.ID).
 			Str("task", task.ID).
 			Msg("openai_collage: task_result not found — admin_only handler may not have completed")
@@ -55,7 +56,7 @@ func (f *OpenAICollageFinalizer) Finalize(
 	}
 
 	f.log.Info().
-		Int64("chat", game.ChatID).
+		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 		Uint64("game", game.ID).
 		Str("task", task.ID).
 		Msg("openai_collage: collage verified, ready for game finish")

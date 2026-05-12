@@ -77,7 +77,7 @@ func (c *Creator) Create(ctx context.Context, chatID int64, chatName string, adm
 	}
 
 	c.log.Info().
-		Int64("chat", chatID).
+		Str("chat", logger.ChatValue(chatID, chatName)).
 		Str("admin", logger.UserValue(adminUser.ID, adminUser.Username)).
 		Msg("game created")
 

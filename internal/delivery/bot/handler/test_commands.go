@@ -13,6 +13,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/notification"
 	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task/finalize"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -83,7 +84,7 @@ func (h *TestCommandsHandler) OnTestTask(c tele.Context) error {
 	if err := h.publisher.Publish(ctx, game); err != nil {
 		return fmt.Errorf("test_task: publish: %w", err)
 	}
-	h.log.Info().Int64("chat", c.Chat().ID).Int("task", n).Msg("test: task published")
+	h.log.Info().Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Int("task", n).Msg("test: task published")
 	return nil
 }
 
@@ -111,7 +112,7 @@ func (h *TestCommandsHandler) OnTestFinalize(c tele.Context) error {
 	if err := h.finalizeRouter.Finalize(ctx, game, task); err != nil {
 		return fmt.Errorf("test_finalize: %w", err)
 	}
-	h.log.Info().Int64("chat", c.Chat().ID).Int("task", n).Msg("test: task finalized")
+	h.log.Info().Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Int("task", n).Msg("test: task finalized")
 	return nil
 }
 
@@ -120,7 +121,7 @@ func (h *TestCommandsHandler) OnTestNotify(c tele.Context) error {
 	if err := h.reminderSender.SendReminders(context.Background()); err != nil {
 		return fmt.Errorf("test_notify: %w", err)
 	}
-	h.log.Info().Int64("chat", c.Chat().ID).Msg("test: reminders sent")
+	h.log.Info().Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("test: reminders sent")
 	return nil
 }
 
@@ -213,7 +214,7 @@ func (h *TestCommandsHandler) OnTestReset(c tele.Context) error {
 	if err := h.gameRepo.Delete(ctx, game.ID); err != nil {
 		return fmt.Errorf("test_reset: delete: %w", err)
 	}
-	h.log.Warn().Uint64("game", game.ID).Int64("chat", c.Chat().ID).Msg("test: game reset")
+	h.log.Warn().Uint64("game", game.ID).Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("test: game reset")
 	return c.Send("game reset ✓")
 }
 

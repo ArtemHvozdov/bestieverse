@@ -62,15 +62,16 @@ config.Load()
 
 Формат лога:
 ```
-2006-01-02 15:04:05 INF действие: детали chat=123456789 user=(987654321|@username)
+2006-01-02 15:04:05 INF действие: детали chat=(123456789|Group Name) user=(987654321|@username)
 ```
 
+Если `chatName` пустой, поле принимает вид `chat=(123456789)`.
 Если `username` пустой, поле принимает вид `user=(987654321)`.
 
 Хелперы `WithChat` / `WithUser` добавляют структурированные поля к дочернему логгеру:
 ```go
 log := logger.New(cfg.Log.Level, cfg.Log.File)
-log = logger.WithChat(log, chat.ID)
+log = logger.WithChat(log, chat.ID, chat.Title)
 log = logger.WithUser(log, user.ID, user.Username)
 log.Info().Msg("game created")
 ```

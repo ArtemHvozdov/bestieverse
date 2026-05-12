@@ -50,7 +50,7 @@ func (j *Joiner) Join(ctx context.Context, chatID int64, user tele.User) error {
 	if err != nil {
 		return fmt.Errorf("game.Join: get game: %w", err)
 	}
-	if game == nil || game.Status == entity.GameFinished {
+	if game == nil || game.Status != entity.GamePending {
 		return nil
 	}
 
@@ -102,6 +102,6 @@ func (j *Joiner) Join(ctx context.Context, chatID int64, user tele.User) error {
 	text, _ := formatter.RenderTemplate(config.Random(j.msgs.JoinWelcome), struct{ Mention string }{Mention: mention})
 	j.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
 
-	j.log.Info().Int64("chat", chatID).Str("user", logger.UserValue(user.ID, user.Username)).Msg("player joined")
+	j.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Str("user", logger.UserValue(user.ID, user.Username)).Msg("player joined")
 	return nil
 }

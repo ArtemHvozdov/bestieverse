@@ -8,6 +8,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/telegram"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -28,7 +29,7 @@ func PlayerCheck(
 
 			game, err := gameRepo.GetByChatID(ctx, c.Chat().ID)
 			if err != nil {
-				log.Error().Err(err).Int64("chat", c.Chat().ID).Msg("player_check: get game")
+				log.Error().Err(err).Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("player_check: get game")
 				return nil
 			}
 			if game == nil {
@@ -72,7 +73,7 @@ func PlayerCheckForStart(
 
 			game, err := gameRepo.GetByChatID(ctx, c.Chat().ID)
 			if err != nil {
-				log.Error().Err(err).Int64("chat", c.Chat().ID).Msg("player_check_start: get game")
+				log.Error().Err(err).Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("player_check_start: get game")
 				return nil
 			}
 			if game == nil {

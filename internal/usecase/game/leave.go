@@ -69,7 +69,7 @@ func (l *Leaver) ConfirmLeave(ctx context.Context, game *entity.Game, player *en
 	text, _ := formatter.RenderTemplate(l.msgs.LeaveSuccess, struct{ Mention string }{Mention: mention})
 	l.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
 
-	l.log.Info().Int64("chat", game.ChatID).Str("user", logger.UserValue(player.TelegramUserID, player.Username)).Msg("player left")
+	l.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Str("user", logger.UserValue(player.TelegramUserID, player.Username)).Msg("player left")
 	return nil
 }
 

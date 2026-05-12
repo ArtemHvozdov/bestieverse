@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -30,7 +31,7 @@ func (r *FinalizeRouter) finishGame(ctx context.Context, game *entity.Game) erro
 
 	r.sender.Send(chat, r.cfg.Game.FinalMessage2, formatter.ParseMode) //nolint:errcheck
 
-	r.log.Info().Int64("chat", game.ChatID).Uint64("game", game.ID).Msg("game finished")
+	r.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Uint64("game", game.ID).Msg("game finished")
 
 	return nil
 }

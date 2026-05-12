@@ -54,7 +54,7 @@ func newStarter(ctrl *gomock.Controller, sender *mockSender) (*game.Starter, *mo
 }
 
 var (
-	startGame        = &entity.Game{ID: 1, ChatID: testChatID, AdminUserID: 999}
+	startGame        = &entity.Game{ID: 1, ChatID: testChatID, AdminUserID: 999, Status: entity.GamePending}
 	startAdminPlayer = &entity.Player{ID: 1, TelegramUserID: 999, Username: "admin"}
 	startNonAdmin    = &entity.Player{ID: 2, TelegramUserID: 55, Username: "user"}
 )

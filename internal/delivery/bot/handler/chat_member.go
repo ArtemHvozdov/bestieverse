@@ -8,6 +8,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/delivery/bot/keyboard"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/game"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -43,7 +44,7 @@ func (h *ChatMemberHandler) OnMyChatMember(c tele.Context) error {
 	ctx := context.Background()
 
 	if _, err := h.creator.Create(ctx, c.Chat().ID, chatName, adminUser); err != nil {
-		h.log.Error().Err(err).Int64("chat", c.Chat().ID).Msg("chat_member: create game")
+		h.log.Error().Err(err).Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("chat_member: create game")
 		return nil
 	}
 

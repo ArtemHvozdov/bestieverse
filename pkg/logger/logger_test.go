@@ -28,12 +28,24 @@ func TestWithChat_AddsFieldToOutput(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log := logger.NewWithWriter(buf, "debug")
 
-	chatLog := logger.WithChat(log, 123456789)
+	chatLog := logger.WithChat(log, 123456789, "Test Group")
 	chatLog.Info().Msg("chat test")
 
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
-	assert.EqualValues(t, 123456789, entry["chat"])
+	assert.Equal(t, "(123456789|Test Group)", entry["chat"])
+}
+
+func TestWithChat_EmptyChatName(t *testing.T) {
+	buf := &bytes.Buffer{}
+	log := logger.NewWithWriter(buf, "debug")
+
+	chatLog := logger.WithChat(log, 123456789, "")
+	chatLog.Info().Msg("chat test")
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+	assert.Equal(t, "(123456789)", entry["chat"])
 }
 
 func TestWithUser_AddsFieldToOutput(t *testing.T) {
@@ -57,18 +69,18 @@ func TestWithUser_EmptyUsername(t *testing.T) {
 
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
-	assert.Equal(t, "( 987654321 | )", entry["user"])
+	assert.Equal(t, "(987654321)", entry["user"])
 }
 
 func TestWithChat_WithUser_Combined(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log := logger.NewWithWriter(buf, "debug")
 
-	combined := logger.WithUser(logger.WithChat(log, 111), 222, "@foo")
+	combined := logger.WithUser(logger.WithChat(log, 111, "My Chat"), 222, "@foo")
 	combined.Info().Msg("combined")
 
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
-	assert.EqualValues(t, 111, entry["chat"])
+	assert.Equal(t, "(111|My Chat)", entry["chat"])
 	assert.Equal(t, "( 222 | @foo)", entry["user"])
 }

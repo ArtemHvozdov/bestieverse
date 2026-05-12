@@ -102,7 +102,7 @@ func (rs *ReminderSender) remindGame(ctx context.Context, game *entity.Game) err
 		}
 
 		rs.log.Info().
-			Int64("chat", game.ChatID).
+			Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 			Uint64("game", game.ID).
 			Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 			Msg("reminder sent")

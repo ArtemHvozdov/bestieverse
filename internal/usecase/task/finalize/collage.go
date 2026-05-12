@@ -17,6 +17,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/media"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 	xdraw "golang.org/x/image/draw"
@@ -111,7 +112,7 @@ func (f *CollageFinalizer) Finalize(
 	}()
 
 	f.log.Info().
-		Int64("chat", game.ChatID).
+		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 		Uint64("game", game.ID).
 		Str("task", task.ID).
 		Msg("collage finalized")

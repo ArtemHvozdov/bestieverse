@@ -48,9 +48,19 @@ func NewWithWriter(w io.Writer, level string) zerolog.Logger {
 	return zerolog.New(w).Level(lvl).With().Timestamp().Logger()
 }
 
-// WithChat returns a child logger with the chat_id field set.
-func WithChat(log zerolog.Logger, chatID int64) zerolog.Logger {
-	return log.With().Int64("chat", chatID).Logger()
+// WithChat returns a child logger with the chat field set as "(id|name)".
+// If chatName is empty, the format is "(id)".
+func WithChat(log zerolog.Logger, chatID int64, chatName string) zerolog.Logger {
+	return log.With().Str("chat", ChatValue(chatID, chatName)).Logger()
+}
+
+// ChatValue formats a chat identifier as "(id|name)" or "(id)" when name is empty.
+// Use this when adding the chat field inline to a log event.
+func ChatValue(chatID int64, chatName string) string {
+	if chatName == "" {
+		return fmt.Sprintf("(%d)", chatID)
+	}
+	return fmt.Sprintf("(%d|%s)", chatID, chatName)
 }
 
 // WithUser returns a child logger with the user field set as "(id|@username)".

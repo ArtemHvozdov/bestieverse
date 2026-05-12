@@ -130,7 +130,7 @@ func (h *WhoIsWhoHandler) HandleRequestAnswer(
 	}
 
 	h.log.Info().
-		Int64("chat", game.ChatID).
+		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("who_is_who: lock acquired, first question sent")
@@ -232,7 +232,7 @@ func (h *WhoIsWhoHandler) HandlePlayerChoice(
 	}
 
 	h.log.Info().
-		Int64("chat", game.ChatID).
+		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 		Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
 		Str("task", task.ID).
 		Msg("who_is_who: all questions answered")

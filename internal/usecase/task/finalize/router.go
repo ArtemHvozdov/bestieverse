@@ -9,6 +9,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/media"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
+	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
 )
@@ -60,7 +61,7 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 	}
 	if existing != nil {
 		r.log.Debug().
-			Int64("chat", game.ChatID).
+			Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 			Uint64("game", game.ID).
 			Str("task", task.ID).
 			Msg("task already finalized, skipping")
@@ -77,7 +78,7 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 	if len(responses) == 0 {
 		text := config.Random(r.cfg.Messages.NaAnswers)
 		r.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
-		r.log.Info().Int64("chat", game.ChatID).Uint64("game", game.ID).Str("task", task.ID).Msg("task finalized: no answers")
+		r.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Uint64("game", game.ID).Str("task", task.ID).Msg("task finalized: no answers")
 		return nil
 	}
 
@@ -92,7 +93,7 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 	}
 
 	r.log.Info().
-		Int64("chat", game.ChatID).
+		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
 		Uint64("game", game.ID).
 		Str("task", task.ID).
 		Msg("task finalized")
