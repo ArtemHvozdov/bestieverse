@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	tele "gopkg.in/telebot.v3"
 )
 
 func testWhoIsWhoTask() *config.Task {
@@ -218,10 +219,13 @@ func TestWhoIsWhoHandlePlayerChoice_Intermediate_UpdatesProgressAndSendsNext(t *
 	mgr := lock.NewManager(lockRepo, 15*time.Minute)
 	h := makeWhoIsWhoHandler(mgr, progressRepo, taskResponseRepo, playerStateRepo, playerRepo, sender)
 
+	prevMsg := &tele.Message{ID: 42}
+
 	// Choose first question (q1 → player 66). QuestionIndex becomes 1, still < 2.
-	err := h.HandlePlayerChoice(ctx, game, player, task, "q1", 66)
+	err := h.HandlePlayerChoice(ctx, game, player, task, "q1", 66, prevMsg)
 	require.NoError(t, err)
-	// Next question sent.
+	// Previous message deleted, next question sent.
+	assert.Equal(t, 1, sender.deleted)
 	assert.Equal(t, 1, len(sender.sent))
 }
 
@@ -267,9 +271,12 @@ func TestWhoIsWhoHandlePlayerChoice_LastQuestion_FinalizesAndSetsIdle(t *testing
 	mgr := lock.NewManager(lockRepo, 15*time.Minute)
 	h := makeWhoIsWhoHandler(mgr, progressRepo, taskResponseRepo, playerStateRepo, playerRepo, sender)
 
-	err := h.HandlePlayerChoice(ctx, game, player, task, "q2", 55)
+	prevMsg := &tele.Message{ID: 42}
+
+	err := h.HandlePlayerChoice(ctx, game, player, task, "q2", 55, prevMsg)
 	require.NoError(t, err)
-	// Follow-up message sent.
+	// Previous message deleted, follow-up sent.
+	assert.Equal(t, 1, sender.deleted)
 	assert.Equal(t, 1, len(sender.sent))
 }
 
@@ -297,9 +304,10 @@ func TestWhoIsWhoHandlePlayerChoice_LockHeldByOther_EarlyExit(t *testing.T) {
 	mgr := lock.NewManager(lockRepo, 15*time.Minute)
 	h := makeWhoIsWhoHandler(mgr, progressRepo, taskResponseRepo, playerStateRepo, playerRepo, sender)
 
-	err := h.HandlePlayerChoice(ctx, game, player, task, "q1", 66)
+	err := h.HandlePlayerChoice(ctx, game, player, task, "q1", 66, &tele.Message{ID: 42})
 	require.NoError(t, err)
-	// subtask_locked sent; nothing else changed.
+	// subtask_locked sent; message NOT deleted (lock not held by this player).
+	assert.Equal(t, 0, sender.deleted)
 	assert.Equal(t, 1, len(sender.sent))
 }
 

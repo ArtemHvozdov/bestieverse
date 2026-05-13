@@ -37,6 +37,12 @@ docker-build:
 docker-migrate:
 	docker compose run --rm migrate
 
+.PHONY: docker-start
+docker-start:
+	docker compose build
+	docker compose up -d
+
+
 .PHONY: docker-clean
 docker-clean:
 	docker compose down -v --remove-orphans

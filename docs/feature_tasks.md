@@ -48,3 +48,126 @@
 ## Task #4
 **Description:** Во время логирования я хочу видеть в логах консоли больше информации, каждое действие юзера, его состояние, состояние игры, текущую таску и так далее. Продумай какие параметры и при каких действиях можно логировать для подробного мониторинга и напиши это в виде плана в поле Plan Task #4 в файле @docs/feature_tasks
 **Plan:**
+
+### Анализ текущего состояния
+
+**Уже логируется (INFO):**
+- `game created` (chat, admin)
+- `player joined` / `player left` (chat, user)
+- `game started` / `game finished` (chat, game)
+- `task published` (chat, game, task)
+- `awaiting answer` (chat, user, task)
+- `task answered` (chat, game, user, task)
+- `task skipped` (chat, user, task, skip_count)
+- `task finalized: no answers` (chat, game, task)
+- `reminder sent` (chat, game, user)
+- Ошибки во всех слоях (ERROR/WARN)
+
+**Пробелы — что нужно добавить:**
+
+---
+
+### 1. Финализация тасок — добавить INFO-лог успешной финализации
+
+**Файл:** `internal/usecase/task/finalize/router.go`
+
+После успешного вызова `finalizer.Finalize(...)`:
+```
+INFO  task finalized   chat=(ID|Name) game=N task=task_NN summary_type=text
+```
+Поля: `chat`, `game` (uint64), `task` (string), `summary_type` (string)
+
+Мотивация: сейчас лог `task finalized` есть только для случая "нет ответов" — успешная финализация не логируется совсем.
+
+---
+
+### 2. Сабтаска voting_collage — добавить INFO-логи нормального flow
+
+**Файл:** `internal/usecase/task/subtask/voting_collage.go`
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| Лок захвачен | INFO | `voting_collage: lock acquired` | chat, user, task |
+| Лок занят | INFO | `voting_collage: lock busy` | chat, user, task |
+| Категория выбрана | INFO | `voting_collage: category chosen` | chat, user, task, category, option, progress (напр. `"2/3"`) |
+| Сабтаска завершена | INFO | `voting_collage: completed` | chat, user, task |
+
+---
+
+### 3. Сабтаска who_is_who — добавить INFO-логи нормального flow
+
+**Файл:** `internal/usecase/task/subtask/who_is_who.go`
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| Лок захвачен | INFO | `who_is_who: lock acquired` | chat, user, task |
+| Лок занят | INFO | `who_is_who: lock busy` | chat, user, task |
+| Ответ на вопрос записан | INFO | `who_is_who: answer recorded` | chat, user, task, question, chosen_user (telegram_id) |
+| Сабтаска завершена | INFO | `who_is_who: completed` | chat, user, task |
+
+---
+
+### 4. Сабтаска meme_voiceover — добавить INFO-логи нормального flow
+
+**Файл:** `internal/usecase/task/subtask/meme_voiceover.go`
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| Лок захвачен | INFO | `meme_voiceover: lock acquired` | chat, user, task |
+| Лок занят | INFO | `meme_voiceover: lock busy` | chat, user, task |
+| Мем озвучен (промежуточный) | INFO | `meme_voiceover: meme answered` | chat, user, task, meme_index (напр. `"2/5"`) |
+| Сабтаска завершена | INFO | `meme_voiceover: completed` | chat, user, task |
+
+---
+
+### 5. Сабтаска admin_only — добавить INFO-логи нормального flow
+
+**Файл:** `internal/usecase/task/subtask/admin_only.go`
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| Сабтаска начата (запрос ответа) | INFO | `admin_only: started` | chat, user, task |
+| Ответ на вопрос записан | INFO | `admin_only: answer recorded` | chat, user, task, question |
+| Запуск генерации OpenAI коллажа | INFO | `admin_only: generating collage` | chat, game, task |
+| Сабтаска полностью завершена | INFO | `admin_only: completed` | chat, user, task |
+
+---
+
+### 6. Scheduler — добавить DEBUG-логи тиков и состояния игр
+
+**Файл:** `cmd/scheduler/main.go`
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| Начало тика планировщика | DEBUG | `scheduler: tick` | games_count (int) |
+| Игра ожидает следующего события | DEBUG | `scheduler: game idle` | game (uint64), next_finalize_in (duration), next_publish_in (duration) |
+
+Мотивация: сейчас невозможно понять, обрабатывает ли планировщик игры или тихо молчит потому что условия не выполнены.
+
+---
+
+### 7. Нотификатор — добавить INFO-лог о количестве игроков для напоминания
+
+**Файл:** `internal/usecase/notification/send_reminder.go`
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| Найдены игроки без ответа | INFO | `reminder: players pending` | chat, game, task, count (int) |
+
+Мотивация: сейчас видно каждое отдельное напоминание, но не видно общего числа — при 0 игроках нотификатор тихо пропускает игру без какого-либо лога.
+
+---
+
+### Итоговая таблица изменений
+
+| Файл | Новых логов | Уровень |
+|---|---|---|
+| `finalize/router.go` | 1 | INFO |
+| `subtask/voting_collage.go` | 4 | INFO |
+| `subtask/who_is_who.go` | 4 | INFO |
+| `subtask/meme_voiceover.go` | 4 | INFO |
+| `subtask/admin_only.go` | 4 | INFO |
+| `cmd/scheduler/main.go` | 2 | DEBUG |
+| `notification/send_reminder.go` | 1 | INFO |
+
+**Итого: 20 новых записей лога** покрывают все пробелы в мониторинге нормального flow.

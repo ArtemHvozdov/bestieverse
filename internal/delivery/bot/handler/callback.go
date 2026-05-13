@@ -132,7 +132,7 @@ func (h *CallbackHandler) OnTask04PlayerChoice(c tele.Context) error {
 		h.log.Warn().Err(err).Str("data", c.Data()).Msg("task04:player: invalid data")
 		return nil
 	}
-	return h.whoIsWhoHandler.HandlePlayerChoice(context.Background(), g, p, t, questionID, chosenUID)
+	return h.whoIsWhoHandler.HandlePlayerChoice(context.Background(), g, p, t, questionID, chosenUID, c.Message())
 }
 
 // OnTask02Choice handles a category option selection in the voting_collage subtask.
@@ -150,7 +150,7 @@ func (h *CallbackHandler) OnTask02Choice(c tele.Context) error {
 		h.log.Warn().Err(err).Str("data", c.Data()).Msg("task02:choice: invalid data")
 		return nil
 	}
-	return h.votingCollageHandler.HandleCategoryChoice(context.Background(), g, p, t, categoryID, optionID)
+	return h.votingCollageHandler.HandleCategoryChoice(context.Background(), g, p, t, categoryID, optionID, c.Message())
 }
 
 // OnTask12Question handles the admin's question button press in task_12.

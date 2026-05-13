@@ -50,7 +50,7 @@ func (j *Joiner) Join(ctx context.Context, chatID int64, user tele.User) error {
 	if err != nil {
 		return fmt.Errorf("game.Join: get game: %w", err)
 	}
-	if game == nil || game.Status != entity.GamePending {
+	if game == nil || game.Status == entity.GameFinished {
 		return nil
 	}
 

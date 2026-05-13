@@ -87,15 +87,15 @@ func TestJoin_AdminUser_NilCreate(t *testing.T) {
 	assert.Len(t, sender.messages, 1) // join_admin_already sent
 }
 
-func TestJoin_GameNotPending_EarlyReturn(t *testing.T) {
+func TestJoin_GameFinished_EarlyReturn(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &mockSender{}
 	joiner, gameRepo, _, _ := newJoiner(ctrl, sender)
 	ctx := context.Background()
 
-	activeGame := &entity.Game{ID: 1, ChatID: testChatID, Status: entity.GameActive}
-	gameRepo.EXPECT().GetByChatID(ctx, testChatID).Return(activeGame, nil)
-	// Nothing else should be called
+	finishedGame := &entity.Game{ID: 1, ChatID: testChatID, Status: entity.GameFinished}
+	gameRepo.EXPECT().GetByChatID(ctx, testChatID).Return(finishedGame, nil)
+	// Nothing else should be called — finished game blocks joining
 
 	err := joiner.Join(ctx, testChatID, tele.User{ID: 55})
 	require.NoError(t, err)

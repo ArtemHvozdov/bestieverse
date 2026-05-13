@@ -140,6 +140,7 @@ func (h *WhoIsWhoHandler) HandleRequestAnswer(
 
 // HandlePlayerChoice is called when a player selects a participant for the current question.
 // questionID and chosenTelegramUserID are parsed from the callback data "questionID:telegramUserID".
+// prevMsg is the message containing the question and player buttons — deleted before sending the next question.
 func (h *WhoIsWhoHandler) HandlePlayerChoice(
 	ctx context.Context,
 	game *entity.Game,
@@ -147,6 +148,7 @@ func (h *WhoIsWhoHandler) HandlePlayerChoice(
 	task *config.Task,
 	questionID string,
 	chosenTelegramUserID int64,
+	prevMsg *tele.Message,
 ) error {
 	chat := &tele.Chat{ID: game.ChatID}
 	mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
@@ -162,6 +164,10 @@ func (h *WhoIsWhoHandler) HandlePlayerChoice(
 			deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
 		}
 		return nil
+	}
+
+	if prevMsg != nil {
+		_ = h.sender.Delete(prevMsg)
 	}
 
 	progress, err := h.subtaskProgressRepo.Get(ctx, game.ID, player.ID, task.ID)

@@ -135,12 +135,14 @@ func (h *VotingCollageHandler) HandleRequestAnswer(
 
 // HandleCategoryChoice is called when a player selects an option in a voting category.
 // categoryID and optionID are parsed from the callback data "categoryID:optionID".
+// prevMsg is the message containing the category photo and buttons — deleted before sending the next category.
 func (h *VotingCollageHandler) HandleCategoryChoice(
 	ctx context.Context,
 	game *entity.Game,
 	player *entity.Player,
 	task *config.Task,
 	categoryID, optionID string,
+	prevMsg *tele.Message,
 ) error {
 	chat := &tele.Chat{ID: game.ChatID}
 	mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
@@ -156,6 +158,10 @@ func (h *VotingCollageHandler) HandleCategoryChoice(
 			deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
 		}
 		return nil
+	}
+
+	if prevMsg != nil {
+		_ = h.sender.Delete(prevMsg)
 	}
 
 	progress, err := h.subtaskProgressRepo.Get(ctx, game.ID, player.ID, task.ID)

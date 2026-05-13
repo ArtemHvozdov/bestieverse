@@ -259,10 +259,13 @@ func TestHandleCategryChoice_Intermediate_UpdatesProgressAndSendsNext(t *testing
 	mgr := lock.NewManager(lockRepo, 15*time.Minute)
 	h := makeHandler(mgr, progressRepo, taskResponseRepo, playerStateRepo, sender)
 
+	prevMsg := &tele.Message{ID: 42}
+
 	// Choose first category (drink → smoothie). QuestionIndex becomes 1, still < 2.
-	err := h.HandleCategoryChoice(ctx, game, player, task, "drink", "smoothie")
+	err := h.HandleCategoryChoice(ctx, game, player, task, "drink", "smoothie", prevMsg)
 	require.NoError(t, err)
-	// Next category (music) sent.
+	// Previous message deleted, next category (music) sent.
+	assert.Equal(t, 1, sender.deleted)
 	assert.Equal(t, 1, len(sender.sent))
 }
 
@@ -307,9 +310,12 @@ func TestHandleCategryChoice_LastCategory_FinalizesAndSendsFollowup(t *testing.T
 	mgr := lock.NewManager(lockRepo, 15*time.Minute)
 	h := makeHandler(mgr, progressRepo, taskResponseRepo, playerStateRepo, sender)
 
-	err := h.HandleCategoryChoice(ctx, game, player, task, "music", "pop")
+	prevMsg := &tele.Message{ID: 42}
+
+	err := h.HandleCategoryChoice(ctx, game, player, task, "music", "pop", prevMsg)
 	require.NoError(t, err)
-	// Follow-up message sent.
+	// Previous message deleted, follow-up sent.
+	assert.Equal(t, 1, sender.deleted)
 	assert.Equal(t, 1, len(sender.sent))
 }
 
@@ -336,9 +342,10 @@ func TestHandleCategryChoice_LockHeldByOther_EarlyExit(t *testing.T) {
 	mgr := lock.NewManager(lockRepo, 15*time.Minute)
 	h := makeHandler(mgr, progressRepo, taskResponseRepo, playerStateRepo, sender)
 
-	err := h.HandleCategoryChoice(ctx, game, player, task, "drink", "smoothie")
+	err := h.HandleCategoryChoice(ctx, game, player, task, "drink", "smoothie", &tele.Message{ID: 42})
 	require.NoError(t, err)
-	// subtask_locked sent; nothing else changed.
+	// subtask_locked sent; message NOT deleted (lock not held by this player).
+	assert.Equal(t, 0, sender.deleted)
 	assert.Equal(t, 1, len(sender.sent))
 }
 
