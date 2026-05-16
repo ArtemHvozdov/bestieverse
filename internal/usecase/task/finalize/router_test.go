@@ -66,6 +66,7 @@ func TestRouter_NoResponses_SendsNaAnswers(t *testing.T) {
 
 	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
 	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
+	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
 
 	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
 		[]config.Task{{Order: 1}, {Order: 2}}, stub)

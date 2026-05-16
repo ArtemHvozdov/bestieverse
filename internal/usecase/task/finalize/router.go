@@ -2,7 +2,9 @@ package finalize
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
@@ -78,7 +80,22 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 	if len(responses) == 0 {
 		text := config.Random(r.cfg.Messages.NaAnswers)
 		r.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
+
+		resultData, _ := json.Marshal(map[string]string{"type": "no_answers"})
+		if err := r.taskResultRepo.Create(ctx, &entity.TaskResult{
+			GameID:      game.ID,
+			TaskID:      task.ID,
+			ResultData:  resultData,
+			FinalizedAt: time.Now(),
+		}); err != nil {
+			return fmt.Errorf("finalize.Router: save no-answers result: %w", err)
+		}
+
 		r.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Uint64("game", game.ID).Str("task", task.ID).Msg("task finalized: no answers")
+
+		if r.cfg.TaskByOrder(task.Order+1) == nil {
+			return r.finishGame(ctx, game)
+		}
 		return nil
 	}
 
