@@ -50,7 +50,7 @@ docker-clean:
 	@if [ "$(TEST_MODE)" = "true" ] && [ -n "$(DB_PATH)" ]; then \
 		echo "TEST_MODE=true: очищаем данные MySQL ($(DB_PATH))..."; \
 		rm -rf "$(DB_PATH)"; \
-		echo "Директория $(DB_PATH) очищена. \
+		echo "Директория $(DB_PATH) очищена."; \
 	fi
 
 .PHONY: docker-restart

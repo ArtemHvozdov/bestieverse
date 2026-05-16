@@ -117,15 +117,11 @@ func processGame(
 	now time.Time,
 	log zerolog.Logger,
 ) {
-	// Publish the first task immediately after game starts (order 0 = not yet published).
-	if g.CurrentTaskOrder == 0 {
-		if err := publisher.Publish(ctx, g); err != nil {
-			log.Error().Err(err).Uint64("game", g.ID).Msg("scheduler: publish first task")
-		}
-		return
-	}
-
-	if g.CurrentTaskPublishedAt == nil {
+	// The first task (order 0 → 1) is always published by the bot when the admin
+	// starts the game (Starter.Start → Publisher.Publish). The scheduler must not
+	// touch order-0 games to avoid a race where both bot and scheduler call Publish
+	// concurrently and send the task message twice.
+	if g.CurrentTaskOrder == 0 || g.CurrentTaskPublishedAt == nil {
 		return
 	}
 

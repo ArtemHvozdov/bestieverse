@@ -153,5 +153,102 @@ bot-1  | 2026-05-09 10:37:11 INF voting_collage: all categories answered chat=-1
 **Исправление:** Додано параметр `prevMsg *tele.Message` до `HandleCategoryChoice` та `HandlePlayerChoice`. Після успішної перевірки лока (лок належить цьому гравцю) викликається `h.sender.Delete(prevMsg)` перед відправкою наступної категорії/питання. В callback handler (`OnTask02Choice`, `OnTask04PlayerChoice`) передається `c.Message()` — це саме те повідомлення, що містить натиснуту кнопку. Якщо лок належить іншому гравцю — видалення не відбувається. Оновлено тести обох сабтасок.
 
 
+## Bug #12 [FIXED]
+**Симптом:** Первая таска при старте игры опубликовалась 2 раза. В чате было 2 юзера, в игре только 1 - админ. Админ нажал Почати гру, игра началась, и бот опубликовал 2 раза первую таску. При этом в консоли логах бота логируется только одна публикается таски:
+```
+bot-1  | 2026-05-16 11:17:57 WRN TEST_MODE enabled: test commands registered
+bot-1  | 2026-05-16 11:17:57 INF bot started
+bot-1  | 2026-05-16 11:26:46 INF game created admin="( 385672319 | green_delfin)" chat="(-1002617613395|Test 3)"
+bot-1  | 2026-05-16 11:27:43 INF game started chat="(-1002617613395|Test 3)" game=1
+bot-1  | 2026-05-16 11:27:44 INF task published chat="(-1002617613395|Test 3)" game=1 task=task_01
+bot-1  | 2026-05-16 11:28:06 INF awaiting answer chat="(-1002617613395|Test 3)" task=task_01 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 11:28:09 INF task answered chat="(-1002617613395|Test 3)" game=1 task=task_01 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 11:28:34 INF player joined chat="(-1002617613395|Test 3)" user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:28:41 INF task skipped chat="(-1002617613395|Test 3)" skip_count=1 task=task_01 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:32:17 INF voting_collage: lock acquired, first category sent chat="(-1002617613395|Test 3)" task=task_02 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:33:12 INF voting_collage: all categories answered chat="(-1002617613395|Test 3)" task=task_02 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:33:19 INF voting_collage: lock acquired, first category sent chat="(-1002617613395|Test 3)" task=task_02 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 11:36:19 INF awaiting answer chat="(-1002617613395|Test 3)" task=task_03 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:36:25 INF task answered chat="(-1002617613395|Test 3)" game=1 task=task_03 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:36:34 INF task skipped chat="(-1002617613395|Test 3)" skip_count=1 task=task_03 user="( 385672319 | green_delfin)"
+```
+
+**Причина:** Гонка данных между ботом и планировщиком при старте игры. В `start.go` последовательность такая:
+1. `gameRepo.UpdateStatus(active)` — игра уже `active`, `current_task_order = 0`
+2. Отправка стартовой анимации + `time.Sleep(TaskInfoInterval)` + отправка второго сообщения (~1 сек)
+3. `publisher.Publish(game)` → `UpdateCurrentTask(order=1)`
+
+Scheduler тикает каждые 15 секунд (и сразу при старте). Если тик попадал в окно между шагами 1 и 3, он видел игру в статусе `active` с `CurrentTaskOrder == 0` и выполнял тот же `publisher.Publish`. Оба вызова работали с объектом `game.CurrentTaskOrder = 0`, оба вычисляли `nextOrder = 1` и оба отправляли первую таску в чат. В логах `bot-1` публикация появляется только одна, потому что scheduler пишет в `scheduler-1`.
+
+**Исправление:** Удалена ветка `CurrentTaskOrder == 0` из `processGame` в `cmd/scheduler/main.go`. Первая таска — исключительная ответственность бота (`Starter.Start → Publisher.Publish`). Scheduler обрабатывает только игры с `CurrentTaskOrder > 0` и установленным `CurrentTaskPublishedAt`, то есть только последующие таски. Условия объединены: `if g.CurrentTaskOrder == 0 || g.CurrentTaskPublishedAt == nil { return }`.
+
+## Bug #13
+**Симптом:** Итоги таски 3 подводяться бесконечно каждые 15 секунд. Это происходит и, если никто не ответил на таску и если ответы есть на таску.
+
+Логи бота и шедулера, когда есть ответы на таску:
+```
+bot-1  | 2026-05-16 11:17:57 WRN TEST_MODE enabled: test commands registered
+bot-1  | 2026-05-16 11:17:57 INF bot started
+bot-1  | 2026-05-16 11:26:46 INF game created admin="( 385672319 | green_delfin)" chat="(-1002617613395|Test 3)"
+bot-1  | 2026-05-16 11:27:43 INF game started chat="(-1002617613395|Test 3)" game=1
+bot-1  | 2026-05-16 11:27:44 INF task published chat="(-1002617613395|Test 3)" game=1 task=task_01
+bot-1  | 2026-05-16 11:28:06 INF awaiting answer chat="(-1002617613395|Test 3)" task=task_01 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 11:28:09 INF task answered chat="(-1002617613395|Test 3)" game=1 task=task_01 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 11:28:34 INF player joined chat="(-1002617613395|Test 3)" user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:28:41 INF task skipped chat="(-1002617613395|Test 3)" skip_count=1 task=task_01 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:32:17 INF voting_collage: lock acquired, first category sent chat="(-1002617613395|Test 3)" task=task_02 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:33:12 INF voting_collage: all categories answered chat="(-1002617613395|Test 3)" task=task_02 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:33:19 INF voting_collage: lock acquired, first category sent chat="(-1002617613395|Test 3)" task=task_02 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 11:36:19 INF awaiting answer chat="(-1002617613395|Test 3)" task=task_03 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:36:25 INF task answered chat="(-1002617613395|Test 3)" game=1 task=task_03 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 11:36:34 INF task skipped chat="(-1002617613395|Test 3)" skip_count=1 task=task_03 user="( 385672319 | green_delfin)"
+
+
+scheduler-1  | 2026-05-16 11:34:14 INF collage finalized chat="(-1002617613395|Test 3)" game=1 task=task_02
+scheduler-1  | 2026-05-16 11:34:14 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_02
+scheduler-1  | 2026-05-16 11:36:13 INF task published chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:38:27 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:38:42 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:38:57 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:39:12 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:39:27 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:39:42 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 11:39:57 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_03
+
+```
+
+Логи бота и шедулера, когда нет ответов на таску:
+```
+bot-1  | 2026-05-16 11:57:33 WRN TEST_MODE enabled: test commands registered
+bot-1  | 2026-05-16 11:57:33 INF bot started
+bot-1  | 2026-05-16 12:14:27 INF game created admin="( 385672319 | green_delfin)" chat="(-1002617613395|Test 3)"
+bot-1  | 2026-05-16 12:14:47 INF game started chat="(-1002617613395|Test 3)" game=1
+bot-1  | 2026-05-16 12:14:48 INF task published chat="(-1002617613395|Test 3)" game=1 task=task_01
+bot-1  | 2026-05-16 12:15:00 INF awaiting answer chat="(-1002617613395|Test 3)" task=task_01 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 12:15:03 INF task answered chat="(-1002617613395|Test 3)" game=1 task=task_01 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 12:15:13 INF player joined chat="(-1002617613395|Test 3)" user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 12:15:20 INF task skipped chat="(-1002617613395|Test 3)" skip_count=1 task=task_01 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 12:19:01 INF voting_collage: lock acquired, first category sent chat="(-1002617613395|Test 3)" task=task_02 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 12:19:49 INF voting_collage: all categories answered chat="(-1002617613395|Test 3)" task=task_02 user="( 6598439879 | Jay_jayss)"
+bot-1  | 2026-05-16 12:19:58 INF voting_collage: lock acquired, first category sent chat="(-1002617613395|Test 3)" task=task_02 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 12:20:35 INF voting_collage: all categories answered chat="(-1002617613395|Test 3)" task=task_02 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 12:23:10 INF task skipped chat="(-1002617613395|Test 3)" skip_count=1 task=task_03 user="( 385672319 | green_delfin)"
+bot-1  | 2026-05-16 12:23:20 INF task skipped chat="(-1002617613395|Test 3)" skip_count=2 task=task_03 user="( 6598439879 | Jay_jayss)"
+
+
+scheduler-1  | 2026-05-16 11:57:33 INF scheduler started
+scheduler-1  | 2026-05-16 12:16:49 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_01
+scheduler-1  | 2026-05-16 12:18:49 INF task published chat="(-1002617613395|Test 3)" game=1 task=task_02
+scheduler-1  | 2026-05-16 12:21:05 INF collage finalized chat="(-1002617613395|Test 3)" game=1 task=task_02
+scheduler-1  | 2026-05-16 12:21:05 INF task finalized chat="(-1002617613395|Test 3)" game=1 task=task_02
+scheduler-1  | 2026-05-16 12:23:04 INF task published chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 12:25:19 INF task finalized: no answers chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 12:25:34 INF task finalized: no answers chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 12:25:49 INF task finalized: no answers chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 12:26:04 INF task finalized: no answers chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 12:26:19 INF task finalized: no answers chat="(-1002617613395|Test 3)" game=1 task=task_03
+scheduler-1  | 2026-05-16 12:26:34 INF task finalized: no answers chat="(-1002617613395|Test 3)" game=1 task=task_03
+```
+
 ## Bug #XX
 **Симптом:** Тестировал удаления БД при разных режимах запуска или перезапуск проекта. Когда при перезапуске бота БД не удаляется, бот удаляется из чата и заново добавляется в чат, бот отправяется приветственные сообщения - сообщение с кнопками Присоединиться к игре, Техподдержка, Выйти из игры и сообщение с кнопкой старта для админа. Хотя игра уже создана и БД активна и не удалялась. Если на кнопки нажимать, то ничего не происходит просто "Загрузка..." в верху окна телеграмма и через несколько секунд удаляется. Я думаю при перезапуске бота не должны в реальности юзеры удалять бота из чата или и заново добавлять. Подумай, нужно ли как-то реагировать на такое поведение
