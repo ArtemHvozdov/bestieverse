@@ -15,7 +15,7 @@ func TestTextFinalizer_SupportedSummaryType(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
-	f := finalize.NewTextFinalizer(taskResultRepo, &mockSender{})
+	f := finalize.NewTextFinalizer(taskResultRepo, noopMedia{}, &mockSender{})
 	if f.SupportedSummaryType() != finalize.SummaryTypeText {
 		t.Errorf("expected %q, got %q", finalize.SummaryTypeText, f.SupportedSummaryType())
 	}
@@ -26,7 +26,7 @@ func TestTextFinalizer_SendsSummaryText(t *testing.T) {
 	defer ctrl.Finish()
 	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	sender := &mockSender{}
-	f := finalize.NewTextFinalizer(taskResultRepo, sender)
+	f := finalize.NewTextFinalizer(taskResultRepo, noopMedia{}, sender)
 
 	game := &entity.Game{ID: 1, ChatID: 100}
 	task := &config.Task{

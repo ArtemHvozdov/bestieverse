@@ -43,6 +43,12 @@ type TaskSummary struct {
 
 	// For admin_only (type: openai_collage)
 	SendingText string `yaml:"sending_text"`
+
+	// Optional file attachment sent after the summary text (e.g. task_08 PDF).
+	// AttachmentFile is the path relative to MEDIA_PATH; AttachmentName is the
+	// display filename shown to users in Telegram.
+	AttachmentFile string `yaml:"attachment_file"`
+	AttachmentName string `yaml:"attachment_name"`
 }
 
 // SubtaskVotingCollage is the subtask config for task_02.

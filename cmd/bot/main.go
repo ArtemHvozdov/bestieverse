@@ -169,7 +169,7 @@ func main() {
 			mediaStorage,
 			cfg,
 			log,
-			finalize.NewTextFinalizer(taskResultRepo, bot),
+			finalize.NewTextFinalizer(taskResultRepo, mediaStorage, bot),
 			finalize.NewPredictionsFinalizer(playerRepo, taskResultRepo, bot),
 			finalize.NewWhoIsWhoFinalizer(playerRepo, taskResultRepo, bot),
 			finalize.NewCollageFinalizer(taskResultRepo, mediaStorage, bot, log),
