@@ -82,19 +82,19 @@ func TestWhoIsWhoFinalizer_CountsVotesAndSendsResults(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 1 header + 1 results message.
-	if len(sender.sent) != 2 {
-		t.Fatalf("expected 2 messages (header + results), got %d", len(sender.sent))
+	// Single combined message: header + blank line + results.
+	if len(sender.sent) != 1 {
+		t.Fatalf("expected 1 combined message, got %d", len(sender.sent))
 	}
-	if sender.sent[0] != "Ось результати!" {
-		t.Errorf("first message should be header, got %q", sender.sent[0])
-	}
-	resultsMsg, ok := sender.sent[1].(string)
+	msg, ok := sender.sent[0].(string)
 	if !ok {
-		t.Fatal("results message should be a string")
+		t.Fatal("message should be a string")
 	}
-	if !strings.Contains(resultsMsg, "@alice") {
-		t.Errorf("results should contain @alice, got %q", resultsMsg)
+	if !strings.Contains(msg, "Ось результати!") {
+		t.Errorf("message should contain header, got %q", msg)
+	}
+	if !strings.Contains(msg, "@alice") {
+		t.Errorf("results should contain @alice, got %q", msg)
 	}
 }
 
@@ -125,12 +125,12 @@ func TestWhoIsWhoFinalizer_TieBreaking_FirstPlayerWins(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(sender.sent) != 2 {
-		t.Fatalf("expected 2 messages, got %d", len(sender.sent))
+	if len(sender.sent) != 1 {
+		t.Fatalf("expected 1 combined message, got %d", len(sender.sent))
 	}
-	resultsMsg, ok := sender.sent[1].(string)
+	resultsMsg, ok := sender.sent[0].(string)
 	if !ok {
-		t.Fatal("results message should be a string")
+		t.Fatal("message should be a string")
 	}
 	// In a tie, alice wins because she appears first in the player list.
 	if !strings.Contains(resultsMsg, "@alice") {
@@ -198,12 +198,12 @@ func TestWhoIsWhoFinalizer_ResultContainsWinnerMention(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(sender.sent) < 2 {
-		t.Fatalf("expected at least 2 messages, got %d", len(sender.sent))
+	if len(sender.sent) != 1 {
+		t.Fatalf("expected 1 combined message, got %d", len(sender.sent))
 	}
-	resultsMsg, ok := sender.sent[1].(string)
+	resultsMsg, ok := sender.sent[0].(string)
 	if !ok {
-		t.Fatal("results message should be a string")
+		t.Fatal("message should be a string")
 	}
 	// Both voted for bob (222) on q1 and alice (111) on q2.
 	if !strings.Contains(resultsMsg, "@bob") {

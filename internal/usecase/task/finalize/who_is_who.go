@@ -84,9 +84,7 @@ func (f *WhoIsWhoFinalizer) Finalize(
 
 	chat := &tele.Chat{ID: game.ChatID}
 
-	f.sender.Send(chat, task.Summary.HeaderText, formatter.ParseMode) //nolint:errcheck
-
-	// Build result lines: "question text → @mention of winner".
+	// Build result lines: "question text @mention of winner", separated by blank lines.
 	var lines []string
 	for _, q := range task.Questions {
 		uid, ok := results[q.ID]
@@ -98,11 +96,15 @@ func (f *WhoIsWhoFinalizer) Finalize(
 			continue
 		}
 		mention := formatter.Mention(p.TelegramUserID, p.Username, p.FirstName)
-		lines = append(lines, q.Text+" → "+mention)
+		lines = append(lines, q.Text+" "+mention)
 	}
+
+	// Combine header and results into a single message separated by a blank line.
+	msg := task.Summary.HeaderText
 	if len(lines) > 0 {
-		f.sender.Send(chat, strings.Join(lines, "\n"), formatter.ParseMode) //nolint:errcheck
+		msg += "\n" + strings.Join(lines, "\n\n")
 	}
+	f.sender.Send(chat, msg, formatter.ParseMode) //nolint:errcheck
 
 	resultData, _ := json.Marshal(results)
 	if err := f.taskResultRepo.Create(ctx, &entity.TaskResult{
