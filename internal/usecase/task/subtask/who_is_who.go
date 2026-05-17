@@ -255,20 +255,34 @@ func (h *WhoIsWhoHandler) sendQuestion(chat *tele.Chat, task *config.Task, playe
 }
 
 // buildPlayerSelectionKeyboard constructs the inline keyboard for player selection.
-// Callback data format: "questionID:telegramUserID" — routed via "\ftask04:player".
+// Buttons are laid out 2 per row; an odd trailing button occupies its own row.
+// Callback data format: "questionID:telegramUserID" — routed via "\ftask04_player".
 func buildPlayerSelectionKeyboard(players []*entity.Player, questionID string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	buttons := make([]tele.Row, 0, len(players))
-	for _, p := range players {
+	var rows []tele.Row
+	for i := 0; i < len(players); i += 2 {
+		p := players[i]
 		label := p.FirstName
 		if p.Username != "" {
 			label = "@" + p.Username
 		}
 		payload := questionID + ":" + strconv.FormatInt(p.TelegramUserID, 10)
 		btn := kbd.Data(label, "task04_player", payload)
-		buttons = append(buttons, kbd.Row(btn))
+
+		if i+1 < len(players) {
+			p2 := players[i+1]
+			label2 := p2.FirstName
+			if p2.Username != "" {
+				label2 = "@" + p2.Username
+			}
+			payload2 := questionID + ":" + strconv.FormatInt(p2.TelegramUserID, 10)
+			btn2 := kbd.Data(label2, "task04_player", payload2)
+			rows = append(rows, kbd.Row(btn, btn2))
+		} else {
+			rows = append(rows, kbd.Row(btn))
+		}
 	}
-	kbd.Inline(buttons...)
+	kbd.Inline(rows...)
 	return kbd
 }
 
