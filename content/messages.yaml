@@ -76,7 +76,7 @@ awaiting_answer:
   - "🍕 {{.Mention}} ми спраглі до твоїх думок. Підкинь нову порцію!"
 
 # Ответ принят
-answer_accepted: "{{.Mention}} дякую! Твою відповідь на завдання #1 прийнято ✅" 
+answer_accepted: "{{.Mention}} дякую! Твою відповідь на завдання #{{.TaskNum}} прийнято ✅"
 
 # Ответ уже дан
 already_answered:

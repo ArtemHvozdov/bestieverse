@@ -269,8 +269,15 @@ scheduler-1  | 2026-05-16 12:26:34 INF task finalized: no answers chat="(-100261
 **Изменённые файлы:** `internal/usecase/task/finalize/text.go`, `internal/usecase/task/finalize/router.go`, `internal/usecase/task/finalize/text_test.go`, `internal/usecase/task/finalize/router_test.go`, `cmd/scheduler/main.go`, `cmd/bot/main.go`.
 
 
-## Bug #14
+## Bug #14 [FIXED]
 **Симптом:** Когда юзер отвечает на таску и бот отправляет сообщение-реакцию, что ответ на таску принят, всегда указано в тексте, что ответ принят на таску 1, хотя отвечает юзер на таску 3
+
+**Причина:** В `content/messages.yaml` строка `answer_accepted` содержала хардкоднутый номер `#1`: `"{{.Mention}} дякую! Твою відповідь на завдання #1 прийнято ✅"`. В `answer.go` шаблон рендерился со структурой `struct{ Mention string }` — поле для номера таски вообще не передавалось.
+
+**Исправление:**
+1. В `content/messages.yaml`: заменено `#1` на `#{{.TaskNum}}`.
+2. В `internal/usecase/task/answer.go`: структура, передаваемая в `formatter.RenderTemplate`, расширена полем `TaskNum int`.
+3. В `internal/usecase/task/sender.go`: добавлен хелпер `taskOrderFromID(taskID string) int`, который извлекает порядковый номер из ID вида `"task_03"` → `3`.
 
 
 ## Bug #15
