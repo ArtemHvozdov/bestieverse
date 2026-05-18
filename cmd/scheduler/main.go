@@ -15,6 +15,7 @@ import (
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/telegram"
 	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task/finalize"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task/subtask"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/logger"
 	"github.com/rs/zerolog"
 	tele "gopkg.in/telebot.v3"
@@ -49,6 +50,7 @@ func main() {
 
 	mediaStorage := media.NewLocalStorage(cfg.Media.Path)
 	publisher := taskuc.NewPublisher(gameRepo, mediaStorage, bot, cfg, log)
+	pollHandler := subtask.NewPollHandler(gameRepo, bot, cfg, log)
 
 	finalizeRouter := finalize.NewFinalizeRouter(
 		taskResponseRepo,
@@ -69,13 +71,13 @@ func main() {
 
 	// Run immediately on start to catch events that may have been missed during downtime,
 	// then poll every 15 seconds to keep timing error well below the shortest test interval.
-	tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, log)
+	tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, pollHandler, log)
 
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, log)
+		tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, pollHandler, log)
 	}
 }
 
@@ -85,6 +87,7 @@ func tick(
 	gameRepo repository.GameRepository,
 	publisher *taskuc.Publisher,
 	finalizeRouter *finalize.FinalizeRouter,
+	pollHandler *subtask.PollHandler,
 	log zerolog.Logger,
 ) {
 	games, err := gameRepo.GetAllActive(ctx)
@@ -101,7 +104,7 @@ func tick(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			processGame(ctx, cfg, g, publisher, finalizeRouter, now, log)
+			processGame(ctx, cfg, g, publisher, finalizeRouter, pollHandler, now, log)
 		}()
 	}
 
@@ -114,6 +117,7 @@ func processGame(
 	g *entity.Game,
 	publisher *taskuc.Publisher,
 	finalizeRouter *finalize.FinalizeRouter,
+	pollHandler *subtask.PollHandler,
 	now time.Time,
 	log zerolog.Logger,
 ) {
@@ -122,6 +126,22 @@ func processGame(
 	// touch order-0 games to avoid a race where both bot and scheduler call Publish
 	// concurrently and send the task message twice.
 	if g.CurrentTaskOrder == 0 || g.CurrentTaskPublishedAt == nil {
+		return
+	}
+
+	// Close poll when PollDuration has elapsed.
+	// Telegram does not reliably deliver UpdatePoll events via long polling, so the
+	// scheduler is the authoritative mechanism for closing the poll and publishing
+	// the follow-up task. Finalization is skipped while a poll is active.
+	if g.ActivePollID != "" && g.PollMessageID != 0 {
+		pollCloseTime := g.CurrentTaskPublishedAt.Add(cfg.Timings.PollDuration)
+		if now.After(pollCloseTime) {
+			if err := pollHandler.ForceClosed(ctx, g); err != nil {
+				log.Error().Err(err).Uint64("game", g.ID).Msg("scheduler: force-close poll")
+			}
+		}
+		// Skip finalization this tick: either the poll is still open, or the follow-up
+		// was just published and players need time to respond before we finalize.
 		return
 	}
 

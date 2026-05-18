@@ -30,6 +30,9 @@ func (s *testSender) Send(_ tele.Recipient, what interface{}, _ ...interface{}) 
 	return &tele.Message{ID: len(s.sent)}, nil
 }
 func (s *testSender) Delete(_ tele.Editable) error { s.deleted++; return nil }
+func (s *testSender) StopPoll(_ tele.Editable, _ ...interface{}) (*tele.Poll, error) {
+	return &tele.Poll{}, nil
+}
 
 type testMedia struct{}
 

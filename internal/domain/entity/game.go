@@ -20,6 +20,7 @@ type Game struct {
 	CurrentTaskOrder       int
 	CurrentTaskPublishedAt *time.Time
 	ActivePollID           string
+	PollMessageID          int64
 	CreatedAt              time.Time
 	StartedAt              *time.Time
 	FinishedAt             *time.Time

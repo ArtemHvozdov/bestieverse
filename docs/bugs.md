@@ -327,8 +327,22 @@ scheduler-1  | 2026-05-16 12:26:34 INF task finalized: no answers chat="(-100261
 6. Обновлены тесты в `text_test.go` — добавлен `noopMedia{}` как третий аргумент.
 
 
-## Bug #17
+## Bug #17 [FIXED]
 **Симптом:** В таске 10 нет подведения итогов голосования. Просто ничего не происходит
+
+**Причина (финальная):** Telegram не отправляет `UpdatePoll` события через long polling при автоматическом закрытии опроса по `close_date`. Дополнительно: дефолтный `POLL_DURATION=24h` превышает максимум Telegram (600 секунд), поэтому `close_date` не устанавливался корректно. Первоначальный фикс (удаление `taskResultRepo.Create` из `PollHandler`) был необходим, но недостаточен — `OnPoll` всё равно не срабатывал.
+
+**Исправление (финальное):** Полностью переработан механизм закрытия опроса:
+1. Убран `CloseUnixdate` из опроса при публикации — опрос теперь открыт бессрочно.
+2. Добавлен столбец `poll_message_id BIGINT` в таблицу `games` (миграция `010`).
+3. `Publisher` сохраняет `poll_message_id` в БД вместе с `active_poll_id`.
+4. Добавлен метод `PollHandler.ForceClosed` — явно вызывает `bot.StopPoll`, получает результаты голосования, определяет победителя, публикует follow-up задание, очищает `active_poll_id` и `poll_message_id`.
+5. Шедулер вызывает `ForceClosed` после истечения `PollDuration`. Пока опрос активен (`active_poll_id != ""`), финализация пропускается.
+6. `SetActivePollID` заменён на `SetActivePoll(ctx, id, pollID, msgID)` — атомарно обновляет оба поля.
+7. Дефолт `POLL_DURATION` изменён с `24h` на `6h` (должен быть меньше `TASK_FINALIZE_OFFSET=23h`).
+8. Добавлен `ClaimActivePoll` — атомарный `UPDATE ... WHERE active_poll_id = ?` — устраняет race condition двойной публикации: `ForceClosed` (шедулер) и `HandlePollClosed` (`OnPoll`, срабатывает от `StopPoll`) могут одновременно определить победителя; только тот, кто выиграл UPDATE, публикует follow-up.
+
+**Изменённые файлы:** `migrations/010_*`, `internal/domain/entity/game.go`, `internal/domain/repository/game.go`, `internal/domain/repository/mocks/mock_game.go`, `internal/infrastructure/mysql/repository/game.go`, `internal/usecase/task/publish.go`, `internal/usecase/task/subtask/sender.go`, `internal/usecase/task/subtask/poll.go`, `internal/usecase/task/subtask/poll_test.go`, `internal/usecase/task/subtask/voting_collage_test.go`, `internal/config/timings.go`, `cmd/bot/main.go`, `cmd/scheduler/main.go`.
 
 
 ## Bug #18

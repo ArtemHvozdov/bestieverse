@@ -84,19 +84,32 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 		for i, opt := range task.Poll.Options {
 			options[i] = tele.PollOption{Text: opt.Label}
 		}
+		// No close_date: scheduler calls bot.StopPoll after PollDuration to get results.
 		poll := &tele.Poll{
-			Question:      task.Poll.Title,
-			Options:       options,
-			Anonymous:     true,
-			CloseUnixdate: now.Add(p.cfg.Timings.PollDuration).Unix(),
+			Question:  task.Poll.Title,
+			Options:   options,
+			Anonymous: true,
 		}
 		msg, err := p.sender.Send(chat, poll)
 		if err != nil {
 			return fmt.Errorf("task.Publish: send poll: %w", err)
 		}
-		if msg != nil && msg.Poll != nil {
-			if err := p.gameRepo.SetActivePollID(ctx, game.ID, msg.Poll.ID); err != nil {
-				return fmt.Errorf("task.Publish: set active poll id: %w", err)
+		if msg == nil || msg.Poll == nil {
+			p.log.Warn().
+				Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
+				Uint64("game", game.ID).
+				Str("task", task.ID).
+				Msg("poll sent but msg.Poll is nil — poll state NOT stored, scheduler cannot close poll")
+		} else {
+			p.log.Info().
+				Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
+				Uint64("game", game.ID).
+				Str("task", task.ID).
+				Str("poll_id", msg.Poll.ID).
+				Int("poll_message_id", msg.ID).
+				Msg("poll sent, storing poll_id and poll_message_id")
+			if err := p.gameRepo.SetActivePoll(ctx, game.ID, msg.Poll.ID, int64(msg.ID)); err != nil {
+				return fmt.Errorf("task.Publish: set active poll: %w", err)
 			}
 		}
 

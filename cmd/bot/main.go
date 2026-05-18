@@ -49,7 +49,16 @@ func main() {
 
 	// Bot
 	bot, err := telegram.NewBot(cfg.Bot.Token, tele.Settings{
-		Poller: &tele.LongPoller{Timeout: 10},
+		Poller: &tele.LongPoller{
+			Timeout: 10,
+			AllowedUpdates: []string{
+				"message",
+				"callback_query",
+				"my_chat_member",
+				"poll",
+				"poll_answer",
+			},
+		},
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("bot init")
@@ -104,7 +113,7 @@ func main() {
 		&cfg.Timings,
 		log,
 	)
-	pollHandler := subtask.NewPollHandler(gameRepo, taskResultRepo, bot, cfg, log)
+	pollHandler := subtask.NewPollHandler(gameRepo, bot, cfg, log)
 	adminOnlyHandler := subtask.NewAdminOnlyHandler(
 		subtaskProgressRepo,
 		taskResponseRepo,

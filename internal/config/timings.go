@@ -58,7 +58,7 @@ func loadProdTimings() (Timings, error) {
 	if err != nil {
 		return Timings{}, fmt.Errorf("TASK_FINALIZE_OFFSET: %w", err)
 	}
-	pollDuration, err := parseDurationEnv("POLL_DURATION", "24h")
+	pollDuration, err := parseDurationEnv("POLL_DURATION", "6h")
 	if err != nil {
 		return Timings{}, fmt.Errorf("POLL_DURATION: %w", err)
 	}

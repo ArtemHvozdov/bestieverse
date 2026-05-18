@@ -2,7 +2,6 @@ package subtask_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
@@ -47,12 +46,11 @@ func makePollTestGame() *entity.Game {
 	}
 }
 
-func newPollHandler(t *testing.T, ctrl *gomock.Controller, sender *testSender, cfg *config.Config) (*subtask.PollHandler, *mocks.MockGameRepository, *mocks.MockTaskResultRepository) {
+func newPollHandler(t *testing.T, ctrl *gomock.Controller, sender *testSender, cfg *config.Config) (*subtask.PollHandler, *mocks.MockGameRepository) {
 	t.Helper()
 	gameRepo := mocks.NewMockGameRepository(ctrl)
-	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
-	h := subtask.NewPollHandler(gameRepo, taskResultRepo, sender, cfg, zerolog.Nop())
-	return h, gameRepo, taskResultRepo
+	h := subtask.NewPollHandler(gameRepo, sender, cfg, zerolog.Nop())
+	return h, gameRepo
 }
 
 func pollTestConfig() *config.Config {
@@ -66,7 +64,7 @@ func TestPollHandler_WinnerByHighestVotes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &testSender{}
 	cfg := pollTestConfig()
-	h, gameRepo, taskResultRepo := newPollHandler(t, ctrl, sender, cfg)
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
 
 	game := makePollTestGame()
 	// dance gets 3, sing gets 1 → dance wins
@@ -81,13 +79,7 @@ func TestPollHandler_WinnerByHighestVotes(t *testing.T) {
 	}
 
 	gameRepo.EXPECT().GetByActivePollID(gomock.Any(), "poll123").Return(game, nil)
-	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, r *entity.TaskResult) error {
-		var result map[string]string
-		require.NoError(t, json.Unmarshal(r.ResultData, &result))
-		assert.Equal(t, "dance", result["winning_option"])
-		return nil
-	})
-	gameRepo.EXPECT().SetActivePollID(gomock.Any(), game.ID, "").Return(nil)
+	gameRepo.EXPECT().ClaimActivePoll(gomock.Any(), game.ID, "poll123").Return(true, nil)
 
 	err := h.HandlePollClosed(context.Background(), poll)
 	require.NoError(t, err)
@@ -100,7 +92,7 @@ func TestPollHandler_TieWinnerIsFirst(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &testSender{}
 	cfg := pollTestConfig()
-	h, gameRepo, taskResultRepo := newPollHandler(t, ctrl, sender, cfg)
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
 
 	game := makePollTestGame()
 	// dance=2, sing=2 → first option (dance) wins
@@ -115,23 +107,20 @@ func TestPollHandler_TieWinnerIsFirst(t *testing.T) {
 	}
 
 	gameRepo.EXPECT().GetByActivePollID(gomock.Any(), "poll123").Return(game, nil)
-	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, r *entity.TaskResult) error {
-		var result map[string]string
-		require.NoError(t, json.Unmarshal(r.ResultData, &result))
-		assert.Equal(t, "dance", result["winning_option"])
-		return nil
-	})
-	gameRepo.EXPECT().SetActivePollID(gomock.Any(), game.ID, "").Return(nil)
+	gameRepo.EXPECT().ClaimActivePoll(gomock.Any(), game.ID, "poll123").Return(true, nil)
 
 	err := h.HandlePollClosed(context.Background(), poll)
 	require.NoError(t, err)
+	// dance wins: prepared_text is sent
+	require.Len(t, sender.sent, 1)
+	assert.Contains(t, sender.sent[0], "Завдання: танок")
 }
 
 func TestPollHandler_AllZeroVotesFirstWins(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &testSender{}
 	cfg := pollTestConfig()
-	h, gameRepo, taskResultRepo := newPollHandler(t, ctrl, sender, cfg)
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
 
 	game := makePollTestGame()
 	// all zero → first option wins
@@ -146,23 +135,20 @@ func TestPollHandler_AllZeroVotesFirstWins(t *testing.T) {
 	}
 
 	gameRepo.EXPECT().GetByActivePollID(gomock.Any(), "poll123").Return(game, nil)
-	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, r *entity.TaskResult) error {
-		var result map[string]string
-		require.NoError(t, json.Unmarshal(r.ResultData, &result))
-		assert.Equal(t, "dance", result["winning_option"])
-		return nil
-	})
-	gameRepo.EXPECT().SetActivePollID(gomock.Any(), game.ID, "").Return(nil)
+	gameRepo.EXPECT().ClaimActivePoll(gomock.Any(), game.ID, "poll123").Return(true, nil)
 
 	err := h.HandlePollClosed(context.Background(), poll)
 	require.NoError(t, err)
+	// dance wins (first option): prepared_text is sent
+	require.Len(t, sender.sent, 1)
+	assert.Contains(t, sender.sent[0], "Завдання: танок")
 }
 
 func TestPollHandler_QuestionAnswerSendsPreparedText(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &testSender{}
 	cfg := pollTestConfig()
-	h, gameRepo, taskResultRepo := newPollHandler(t, ctrl, sender, cfg)
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
 
 	game := makePollTestGame()
 	poll := &tele.Poll{
@@ -176,13 +162,11 @@ func TestPollHandler_QuestionAnswerSendsPreparedText(t *testing.T) {
 	}
 
 	gameRepo.EXPECT().GetByActivePollID(gomock.Any(), "poll456").Return(game, nil)
-	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
-	gameRepo.EXPECT().SetActivePollID(gomock.Any(), game.ID, "").Return(nil)
+	gameRepo.EXPECT().ClaimActivePoll(gomock.Any(), game.ID, "poll456").Return(true, nil)
 
 	err := h.HandlePollClosed(context.Background(), poll)
 	require.NoError(t, err)
 
-	// prepared_text and keyboard (2 send args) should be sent
 	require.Len(t, sender.sent, 1)
 	assert.Equal(t, "Завдання: танок", sender.sent[0])
 }
@@ -191,7 +175,7 @@ func TestPollHandler_ActivePollIDClearedAfterProcessing(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &testSender{}
 	cfg := pollTestConfig()
-	h, gameRepo, taskResultRepo := newPollHandler(t, ctrl, sender, cfg)
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
 
 	game := makePollTestGame()
 	poll := &tele.Poll{
@@ -205,19 +189,42 @@ func TestPollHandler_ActivePollIDClearedAfterProcessing(t *testing.T) {
 	}
 
 	gameRepo.EXPECT().GetByActivePollID(gomock.Any(), "poll789").Return(game, nil)
-	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
-	// SetActivePollID called with empty string to clear the poll
-	gameRepo.EXPECT().SetActivePollID(gomock.Any(), game.ID, "").Return(nil)
+	gameRepo.EXPECT().ClaimActivePoll(gomock.Any(), game.ID, "poll789").Return(true, nil)
 
 	err := h.HandlePollClosed(context.Background(), poll)
 	require.NoError(t, err)
+}
+
+func TestPollHandler_AlreadyClaimed_NoOp(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	sender := &testSender{}
+	cfg := pollTestConfig()
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
+
+	game := makePollTestGame()
+	poll := &tele.Poll{
+		ID:     "poll999",
+		Closed: true,
+		Options: []tele.PollOption{
+			{Text: "Танцювати", VoterCount: 2},
+			{Text: "Співати", VoterCount: 0},
+			{Text: "Мемаси", VoterCount: 0},
+		},
+	}
+
+	gameRepo.EXPECT().GetByActivePollID(gomock.Any(), "poll999").Return(game, nil)
+	gameRepo.EXPECT().ClaimActivePoll(gomock.Any(), game.ID, "poll999").Return(false, nil)
+
+	err := h.HandlePollClosed(context.Background(), poll)
+	require.NoError(t, err)
+	assert.Empty(t, sender.sent)
 }
 
 func TestPollHandler_NoGameFound_NoOp(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := &testSender{}
 	cfg := pollTestConfig()
-	h, gameRepo, _ := newPollHandler(t, ctrl, sender, cfg)
+	h, gameRepo := newPollHandler(t, ctrl, sender, cfg)
 
 	poll := &tele.Poll{
 		ID:     "unknown_poll",

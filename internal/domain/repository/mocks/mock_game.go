@@ -107,16 +107,29 @@ func (r *MockGameRepositoryMockRecorder) UpdateCurrentTask(ctx, id, order, publi
 	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "UpdateCurrentTask", reflect.TypeOf((*MockGameRepository)(nil).UpdateCurrentTask), ctx, id, order, publishedAt)
 }
 
-func (m *MockGameRepository) SetActivePollID(ctx context.Context, id uint64, pollID string) error {
+func (m *MockGameRepository) ClaimActivePoll(ctx context.Context, gameID uint64, pollID string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetActivePollID", ctx, id, pollID)
+	ret := m.ctrl.Call(m, "ClaimActivePoll", ctx, gameID, pollID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (r *MockGameRepositoryMockRecorder) ClaimActivePoll(ctx, gameID, pollID any) *gomock.Call {
+	r.mock.ctrl.T.Helper()
+	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "ClaimActivePoll", reflect.TypeOf((*MockGameRepository)(nil).ClaimActivePoll), ctx, gameID, pollID)
+}
+
+func (m *MockGameRepository) SetActivePoll(ctx context.Context, id uint64, pollID string, msgID int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetActivePoll", ctx, id, pollID, msgID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (r *MockGameRepositoryMockRecorder) SetActivePollID(ctx, id, pollID any) *gomock.Call {
+func (r *MockGameRepositoryMockRecorder) SetActivePoll(ctx, id, pollID, msgID any) *gomock.Call {
 	r.mock.ctrl.T.Helper()
-	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "SetActivePollID", reflect.TypeOf((*MockGameRepository)(nil).SetActivePollID), ctx, id, pollID)
+	return r.mock.ctrl.RecordCallWithMethodType(r.mock, "SetActivePoll", reflect.TypeOf((*MockGameRepository)(nil).SetActivePoll), ctx, id, pollID, msgID)
 }
 
 func (m *MockGameRepository) GetAllActive(ctx context.Context) ([]*entity.Game, error) {

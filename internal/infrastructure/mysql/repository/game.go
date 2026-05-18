@@ -78,13 +78,30 @@ func (r *GameRepo) UpdateCurrentTask(ctx context.Context, id uint64, order int, 
 	return nil
 }
 
-func (r *GameRepo) SetActivePollID(ctx context.Context, id uint64, pollID string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE games SET active_poll_id = ? WHERE id = ?`,
-		sql.NullString{String: pollID, Valid: pollID != ""}, id,
+// ClaimActivePoll atomically clears active_poll_id/poll_message_id only if active_poll_id
+// still matches pollID. Returns true if this caller won the claim (rows affected > 0).
+// Used to prevent double-publish when OnPoll and ForceClosed race on the same poll.
+func (r *GameRepo) ClaimActivePoll(ctx context.Context, gameID uint64, pollID string) (bool, error) {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE games SET active_poll_id = NULL, poll_message_id = NULL WHERE id = ? AND active_poll_id = ?`,
+		gameID, pollID,
 	)
 	if err != nil {
-		return fmt.Errorf("mysql/game.SetActivePollID: %w", err)
+		return false, fmt.Errorf("mysql/game.ClaimActivePoll: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
+func (r *GameRepo) SetActivePoll(ctx context.Context, id uint64, pollID string, msgID int64) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE games SET active_poll_id = ?, poll_message_id = ? WHERE id = ?`,
+		sql.NullString{String: pollID, Valid: pollID != ""},
+		sql.NullInt64{Int64: msgID, Valid: msgID != 0},
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("mysql/game.SetActivePoll: %w", err)
 	}
 	return nil
 }
@@ -120,13 +137,14 @@ func (r *GameRepo) SetFinished(ctx context.Context, id uint64) error {
 
 const gameColumns = `id, chat_id, chat_name, admin_user_id, admin_username, status,
 	current_task_order, current_task_published_at, COALESCE(active_poll_id, '') as active_poll_id,
+	COALESCE(poll_message_id, 0) as poll_message_id,
 	created_at, started_at, finished_at`
 
 func scanGame(row *sql.Row) (*entity.Game, error) {
 	var g entity.Game
 	err := row.Scan(
 		&g.ID, &g.ChatID, &g.ChatName, &g.AdminUserID, &g.AdminUsername, &g.Status,
-		&g.CurrentTaskOrder, &g.CurrentTaskPublishedAt, &g.ActivePollID,
+		&g.CurrentTaskOrder, &g.CurrentTaskPublishedAt, &g.ActivePollID, &g.PollMessageID,
 		&g.CreatedAt, &g.StartedAt, &g.FinishedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -144,7 +162,7 @@ func scanGames(rows *sql.Rows) ([]*entity.Game, error) {
 		var g entity.Game
 		err := rows.Scan(
 			&g.ID, &g.ChatID, &g.ChatName, &g.AdminUserID, &g.AdminUsername, &g.Status,
-			&g.CurrentTaskOrder, &g.CurrentTaskPublishedAt, &g.ActivePollID,
+			&g.CurrentTaskOrder, &g.CurrentTaskPublishedAt, &g.ActivePollID, &g.PollMessageID,
 			&g.CreatedAt, &g.StartedAt, &g.FinishedAt,
 		)
 		if err != nil {

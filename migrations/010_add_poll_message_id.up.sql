@@ -1,0 +1,1 @@
+ALTER TABLE games ADD COLUMN poll_message_id BIGINT NULL DEFAULT NULL;

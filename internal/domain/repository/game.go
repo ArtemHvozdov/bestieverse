@@ -14,7 +14,8 @@ type GameRepository interface {
 	GetByActivePollID(ctx context.Context, pollID string) (*entity.Game, error)
 	UpdateStatus(ctx context.Context, id uint64, status entity.GameStatus) error
 	UpdateCurrentTask(ctx context.Context, id uint64, order int, publishedAt time.Time) error
-	SetActivePollID(ctx context.Context, id uint64, pollID string) error
+	SetActivePoll(ctx context.Context, id uint64, pollID string, msgID int64) error
+	ClaimActivePoll(ctx context.Context, gameID uint64, pollID string) (bool, error)
 	GetAllActive(ctx context.Context) ([]*entity.Game, error)
 	SetFinished(ctx context.Context, id uint64) error
 	Delete(ctx context.Context, id uint64) error

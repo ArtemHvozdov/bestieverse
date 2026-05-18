@@ -11,6 +11,7 @@ import (
 type Sender interface {
 	Send(to tele.Recipient, what interface{}, opts ...interface{}) (*tele.Message, error)
 	Delete(msg tele.Editable) error
+	StopPoll(msg tele.Editable, opts ...interface{}) (*tele.Poll, error)
 }
 
 func deleteAfter(s Sender, msg *tele.Message, delay time.Duration) {
