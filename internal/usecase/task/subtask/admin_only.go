@@ -143,7 +143,7 @@ func (h *AdminOnlyHandler) HandleRequestAnswer(
 }
 
 // HandleButtonPress is called when the admin clicks the question button (button_label).
-// Sends a "write your answer" prompt; does not delete it so the admin can read it.
+// Sends a temporary "write your answer" prompt that auto-deletes after DeleteMessageDelay.
 func (h *AdminOnlyHandler) HandleButtonPress(
 	_ context.Context,
 	game *entity.Game,
@@ -153,7 +153,10 @@ func (h *AdminOnlyHandler) HandleButtonPress(
 ) error {
 	chat := &tele.Chat{ID: game.ChatID}
 	text := config.Random(h.msgs.Task12AwaitingAnswer)
-	h.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
+	msg, _ := h.sender.Send(chat, text, formatter.ParseMode)
+	if msg != nil {
+		deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
+	}
 	return nil
 }
 
@@ -195,9 +198,12 @@ func (h *AdminOnlyHandler) HandleAnswer(
 		h.sender.Delete(&tele.Message{ID: pd.QuestionMsgID, Chat: &tele.Chat{ID: game.ChatID}}) //nolint:errcheck
 	}
 
-	// Reply acknowledging the answer (keep in chat)
+	// Reply acknowledging the answer; auto-deletes after delay.
 	replyText := config.Random(h.msgs.Task12Reply)
-	h.sender.Send(chat, replyText, formatter.ParseMode) //nolint:errcheck
+	replyMsg, _ := h.sender.Send(chat, replyText, formatter.ParseMode)
+	if replyMsg != nil {
+		deleteAfter(h.sender, replyMsg, h.timings.DeleteMessageDelay)
+	}
 
 	progress.QuestionIndex++
 

@@ -23,6 +23,7 @@ type stubMedia struct{}
 func (s *stubMedia) GetFile(name string) (*tele.Document, error)    { return nil, errNotFound }
 func (s *stubMedia) GetPhoto(name string) (*tele.Photo, error)      { return nil, errNotFound }
 func (s *stubMedia) GetAnimation(name string) (*tele.Animation, error) { return nil, errNotFound }
+func (s *stubMedia) CacheFileID(_, _ string)                        {}
 
 var errNotFound = errors.New("not found")
 

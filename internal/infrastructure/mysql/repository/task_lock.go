@@ -18,11 +18,14 @@ func NewTaskLockRepo(db *sql.DB) *TaskLockRepo {
 	return &TaskLockRepo{db: db}
 }
 
-// Acquire tries to insert a lock row using INSERT IGNORE so that only the first caller wins.
+// Acquire inserts a lock row, or refreshes expires_at if the same player already holds it.
+// A different player's lock is left untouched so the caller can detect it via Get.
 func (r *TaskLockRepo) Acquire(ctx context.Context, gameID uint64, taskID string, playerID uint64, expiresAt time.Time) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT IGNORE INTO task_locks (game_id, task_id, player_id, expires_at)
-		 VALUES (?, ?, ?, ?)`,
+		`INSERT INTO task_locks (game_id, task_id, player_id, expires_at)
+		 VALUES (?, ?, ?, ?)
+		 ON DUPLICATE KEY UPDATE
+		     expires_at = IF(player_id = VALUES(player_id), VALUES(expires_at), expires_at)`,
 		gameID, taskID, playerID, expiresAt,
 	)
 	if err != nil {

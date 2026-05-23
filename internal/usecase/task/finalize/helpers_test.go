@@ -27,3 +27,4 @@ type noopMedia struct{}
 func (noopMedia) GetFile(_ string) (*tele.Document, error)   { return nil, fmt.Errorf("noop") }
 func (noopMedia) GetPhoto(_ string) (*tele.Photo, error)     { return nil, fmt.Errorf("noop") }
 func (noopMedia) GetAnimation(_ string) (*tele.Animation, error) { return nil, fmt.Errorf("noop") }
+func (noopMedia) CacheFileID(_, _ string)                    {}

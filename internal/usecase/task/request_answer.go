@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
@@ -59,6 +60,22 @@ func (r *RequestAnswerer) RequestAnswer(ctx context.Context, game *entity.Game, 
 		if msg != nil {
 			deleteAfter(r.sender, msg, r.timings.DeleteMessageDelay)
 		}
+		return nil
+	}
+
+	// Guard: do not overwrite state if player is already inside an exclusive subtask (:meme, :admin).
+	// Pressing a button for another task during voiceover/admin flow would corrupt the subtask state.
+	currentState, err := r.playerStateRepo.GetByPlayerAndGame(ctx, game.ID, player.ID)
+	if err != nil {
+		return fmt.Errorf("task.RequestAnswer: get current state: %w", err)
+	}
+	if currentState != nil && currentState.State == entity.PlayerStateAwaitingAnswer &&
+		(strings.HasSuffix(currentState.TaskID, ":meme") || strings.HasSuffix(currentState.TaskID, ":admin")) {
+		r.log.Warn().
+			Str("user", logger.UserValue(player.TelegramUserID, player.Username)).
+			Str("current_task", currentState.TaskID).
+			Str("requested_task", task.ID).
+			Msg("RequestAnswer: player in exclusive subtask, ignoring button press")
 		return nil
 	}
 

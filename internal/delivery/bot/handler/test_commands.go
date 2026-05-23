@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/usecase/notification"
 	taskuc "github.com/ArtemHvozdov/bestieverse.git/internal/usecase/task"
@@ -73,6 +74,14 @@ func (h *TestCommandsHandler) OnTestTask(c tele.Context) error {
 	}
 	if game == nil {
 		return c.Send("no game in this chat")
+	}
+
+	// Ensure the game is active so player interactions and the scheduler work normally.
+	if game.Status != entity.GameActive {
+		if err := h.gameRepo.UpdateStatus(ctx, game.ID, entity.GameActive); err != nil {
+			return fmt.Errorf("test_task: activate game: %w", err)
+		}
+		game.Status = entity.GameActive
 	}
 
 	// Set current_task_order to N-1 so Publish picks up task N.

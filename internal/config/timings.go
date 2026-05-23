@@ -17,6 +17,12 @@ type Timings struct {
 	// Subtask exclusive lock
 	SubtaskLockTimeout time.Duration // 15m — lock timeout for exclusive subtasks
 
+	// MemeColdCacheDelay is the pause inserted before uploading a meme GIF
+	// (task_10) whose file_id is not yet cached. It spreads cold uploads enough
+	// to stay under Telegram's per-chat media burst limit on the very first run;
+	// cached sends skip the delay entirely.
+	MemeColdCacheDelay time.Duration
+
 	// Scheduler
 	TaskPublishInterval time.Duration // 24h (prod) — interval between task publications
 	TaskFinalizeOffset  time.Duration // 23h (prod) — how long after publish before finalize
@@ -66,12 +72,17 @@ func loadProdTimings() (Timings, error) {
 	if err != nil {
 		return Timings{}, fmt.Errorf("REMINDER_DELAY: %w", err)
 	}
+	memeColdDelay, err := parseDurationEnv("MEME_COLD_CACHE_DELAY", "20s")
+	if err != nil {
+		return Timings{}, fmt.Errorf("MEME_COLD_CACHE_DELAY: %w", err)
+	}
 
 	return Timings{
 		DeleteMessageDelay:  deleteDelay,
 		JoinMessageDelay:    joinDelay,
 		TaskInfoInterval:    taskInfo,
 		SubtaskLockTimeout:  lockTimeout,
+		MemeColdCacheDelay:  memeColdDelay,
 		TaskPublishInterval: publishInterval,
 		TaskFinalizeOffset:  finalizeOffset,
 		PollDuration:        pollDuration,
@@ -112,12 +123,17 @@ func loadTestTimings() (Timings, error) {
 	if err != nil {
 		return Timings{}, fmt.Errorf("TEST_REMINDER_DELAY: %w", err)
 	}
+	memeColdDelay, err := parseDurationEnv("TEST_MEME_COLD_CACHE_DELAY", "3s")
+	if err != nil {
+		return Timings{}, fmt.Errorf("TEST_MEME_COLD_CACHE_DELAY: %w", err)
+	}
 
 	return Timings{
 		DeleteMessageDelay:  deleteDelay,
 		JoinMessageDelay:    joinDelay,
 		TaskInfoInterval:    taskInfo,
 		SubtaskLockTimeout:  lockTimeout,
+		MemeColdCacheDelay:  memeColdDelay,
 		TaskPublishInterval: publishInterval,
 		TaskFinalizeOffset:  finalizeOffset,
 		PollDuration:        pollDuration,

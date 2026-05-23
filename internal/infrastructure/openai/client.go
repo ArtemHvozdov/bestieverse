@@ -23,13 +23,14 @@ func NewClient(apiKey, model string) *Client {
 }
 
 // GenerateCollage sends a prompt to OpenAI and returns the generated image as PNG bytes.
+// ResponseFormat is intentionally omitted: gpt-image-1 always returns b64_json and
+// rejects requests that include the response_format parameter.
 func (c *Client) GenerateCollage(ctx context.Context, prompt string) ([]byte, error) {
 	resp, err := c.client.CreateImage(ctx, openai.ImageRequest{
-		Model:          c.model,
-		Prompt:         prompt,
-		N:              1,
-		Size:           openai.CreateImageSize1024x1024,
-		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
+		Model:  c.model,
+		Prompt: prompt,
+		N:      1,
+		Size:   openai.CreateImageSize1024x1024,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("openai.GenerateCollage: create image: %w", err)

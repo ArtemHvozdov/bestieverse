@@ -225,9 +225,10 @@ func TestAdminHandleButtonPress_SendsAwaitingAnswer(t *testing.T) {
 	err := h.HandleButtonPress(context.Background(), game, player, task, "city")
 	require.NoError(t, err)
 
-	// Sends awaiting_answer, does NOT delete it
+	// Sends awaiting_answer and schedules it for deletion.
 	assert.Len(t, sender.sent, 1)
-	assert.Equal(t, 0, sender.deleted)
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 1, sender.deleted)
 }
 
 // ---- HandleAnswer tests ----
@@ -277,8 +278,9 @@ func TestAdminHandleAnswer_IntermediateQuestion_SendsNext(t *testing.T) {
 	err := h.HandleAnswer(context.Background(), game, player, task, msg)
 	require.NoError(t, err)
 
-	// Deleted question msg + reply + next question = 2 sends, 1 delete
-	assert.Equal(t, 1, sender.deleted) // question message deleted
+	// Question deleted synchronously; reply deleted async after delay.
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 2, sender.deleted) // question + reply both deleted
 	assert.Len(t, sender.sent, 2)      // reply + next question
 }
 
@@ -354,7 +356,8 @@ func TestAdminHandleAnswer_LastQuestion_CallsOpenAIAndSavesResponse(t *testing.T
 	assert.Equal(t, "Київ", answers["city"])
 	assert.Equal(t, "The Beatles", answers["concert"])
 
-	// Messages: delete question + reply + sending_text + photo
-	assert.Equal(t, 1, sender.deleted)
+	// Question deleted synchronously; reply deleted async after delay.
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 2, sender.deleted) // question + reply both deleted
 	assert.GreaterOrEqual(t, len(sender.sent), 2)
 }

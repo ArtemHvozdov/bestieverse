@@ -41,7 +41,7 @@ docker-migrate:
 docker-start:
 	docker compose build
 	docker compose up -d
-	docker compose logs -f botgit
+	docker compose logs -f bot
 
 
 .PHONY: docker-clean

@@ -89,11 +89,12 @@ type SubtaskPoll struct {
 // PollOption is one option in the Telegram poll.
 // Depending on result_type it triggers a different follow-up subtask.
 type PollOption struct {
-	ID           string   `yaml:"id"`
-	Label        string   `yaml:"label"`
-	ResultType   string   `yaml:"result_type"` // question_answer | meme_voiceover
-	PreparedText string   `yaml:"prepared_text"`
-	MemeFiles    []string `yaml:"meme_files"`
+	ID             string   `yaml:"id"`
+	Label          string   `yaml:"label"`
+	ResultType     string   `yaml:"result_type"` // question_answer | meme_voiceover
+	PreparedText   string   `yaml:"prepared_text"`
+	MemeFiles      []string `yaml:"meme_files"`
+	MemesPerPlayer int      `yaml:"memes_per_player"` // how many memes each player voices (default 5)
 }
 
 // TaskMessage is one message to send when publishing task_12.

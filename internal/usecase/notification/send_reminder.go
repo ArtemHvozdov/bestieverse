@@ -72,6 +72,10 @@ func (rs *ReminderSender) remindGame(ctx context.Context, game *entity.Game) err
 		return nil
 	}
 
+	if task.Type == "admin_only" {
+		return nil
+	}
+
 	players, err := rs.notificationRepo.GetUnnotifiedPlayers(ctx, game.ID, task.ID)
 	if err != nil {
 		return fmt.Errorf("notification.SendReminders: get unnotified players: %w", err)

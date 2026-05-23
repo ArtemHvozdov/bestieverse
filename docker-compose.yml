@@ -38,6 +38,9 @@ services:
       mysql:
         condition: service_healthy
     env_file: .env
+    volumes:
+      # Persistent media file_id cache (survives container rebuilds).
+      - ./data:/app/data
     restart: unless-stopped
 
   notifier:
@@ -58,4 +61,7 @@ services:
       mysql:
         condition: service_healthy
     env_file: .env
+    volumes:
+      # Persistent media file_id cache (survives container rebuilds).
+      - ./data:/app/data
     restart: unless-stopped

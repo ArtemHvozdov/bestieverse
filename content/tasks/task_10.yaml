@@ -75,8 +75,9 @@ pol:
         Я у вас вірю! Цьом 💋
 
     - id: "memes"
-      label: "🙊 Озвучити потік мемасиків і вкотре довести геніальність українського дубляжу"
+      label: "🙊 Озвучити меми 🎤"
       result_type: meme_voiceover
+      memes_per_player: 5
       meme_files:
         - "task_10/meme_01.gif"
         - "task_10/meme_02.gif"

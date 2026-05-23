@@ -48,7 +48,8 @@ func main() {
 		log.Fatal().Err(err).Msg("bot init")
 	}
 
-	mediaStorage := media.NewLocalStorage(cfg.Media.Path)
+	mediaStorage := media.NewLocalStorage(cfg.Media.Path, cfg.Media.CachePath)
+	log.Info().Int("cached_file_ids", mediaStorage.CacheSize()).Msg("media cache loaded")
 	publisher := taskuc.NewPublisher(gameRepo, mediaStorage, bot, cfg, log)
 	pollHandler := subtask.NewPollHandler(gameRepo, bot, cfg, log)
 

@@ -65,7 +65,8 @@ func main() {
 	}
 
 	// Media
-	mediaStorage := media.NewLocalStorage(cfg.Media.Path)
+	mediaStorage := media.NewLocalStorage(cfg.Media.Path, cfg.Media.CachePath)
+	log.Info().Int("cached_file_ids", mediaStorage.CacheSize()).Msg("media cache loaded")
 
 	// OpenAI client
 	openaiClient := openai.NewClient(cfg.OpenAI.APIKey, cfg.OpenAI.Model)
@@ -166,8 +167,10 @@ func main() {
 	bot.Handle(tele.OnVideo, messageHandler.OnMessage)
 	bot.Handle(tele.OnAudio, messageHandler.OnMessage)
 	bot.Handle(tele.OnVoice, messageHandler.OnMessage)
+	bot.Handle(tele.OnAnimation, messageHandler.OnMessage)
 	bot.Handle(tele.OnVideoNote, messageHandler.OnMessage)
 	bot.Handle(tele.OnDocument, messageHandler.OnMessage)
+	bot.Handle(tele.OnSticker, messageHandler.OnMessage)
 
 	if cfg.TestMode {
 		finalizeRouter := finalize.NewFinalizeRouter(

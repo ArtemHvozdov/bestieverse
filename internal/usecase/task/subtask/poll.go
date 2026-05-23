@@ -98,7 +98,7 @@ func (h *PollHandler) publishFollowUp(_ context.Context, game *entity.Game, task
 			return fmt.Errorf("subtask/poll.publishFollowUp: send: %w", err)
 		}
 	case "meme_voiceover":
-		kbd := buildMemeVoiceoverKeyboard()
+		kbd := buildMemeVoiceoverKeyboard(task.ID)
 		if _, err := h.sender.Send(chat, h.cfg.Messages.MemeVoiceoverAnnounce, formatter.ParseMode, kbd); err != nil {
 			return fmt.Errorf("subtask/poll.publishFollowUp: send meme announce: %w", err)
 		}
@@ -191,9 +191,13 @@ func buildPollTaskKeyboard(taskID string) *tele.ReplyMarkup {
 }
 
 // buildMemeVoiceoverKeyboard constructs the keyboard for starting the meme voiceover subtask.
-func buildMemeVoiceoverKeyboard() *tele.ReplyMarkup {
+// Uses the same button labels as regular tasks ("Хочу відповісти" / "Пропустити") for UX consistency.
+// The "Хочу відповісти" button keeps the task10_meme_request unique so it routes to
+// MemeVoiceoverHandler.HandleRequestAnswer rather than the generic RequestAnswerer.
+func buildMemeVoiceoverKeyboard(taskID string) *tele.ReplyMarkup {
 	kbd := &tele.ReplyMarkup{}
-	btn := kbd.Data("Хочу озвучити 🎤", "task10_meme_request")
-	kbd.Inline(kbd.Row(btn))
+	answer := kbd.Data("Хочу відповісти ✍️", "task10_meme_request")
+	skip := kbd.Data("Пропустити ⏭️", "task_skip", taskID)
+	kbd.Inline(kbd.Row(answer, skip))
 	return kbd
 }

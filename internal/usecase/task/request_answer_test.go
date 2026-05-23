@@ -27,6 +27,7 @@ func TestRequestAnswer_Success_SetsAwaitingState(t *testing.T) {
 	ctx := context.Background()
 
 	trRepo.EXPECT().GetByPlayerAndTask(ctx, testGameID, testPlayerID, testTaskID).Return(nil, nil)
+	psRepo.EXPECT().GetByPlayerAndGame(ctx, testGameID, testPlayerID).Return(nil, nil)
 	psRepo.EXPECT().Upsert(ctx, gomock.Any()).DoAndReturn(func(_ context.Context, s *entity.PlayerState) error {
 		assert.Equal(t, entity.PlayerStateAwaitingAnswer, s.State)
 		assert.Equal(t, testTaskID, s.TaskID)

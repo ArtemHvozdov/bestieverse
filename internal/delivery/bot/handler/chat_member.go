@@ -43,8 +43,15 @@ func (h *ChatMemberHandler) OnMyChatMember(c tele.Context) error {
 	chatName := c.Chat().Title
 	ctx := context.Background()
 
-	if _, err := h.creator.Create(ctx, c.Chat().ID, chatName, adminUser); err != nil {
+	game, err := h.creator.Create(ctx, c.Chat().ID, chatName, adminUser)
+	if err != nil {
 		h.log.Error().Err(err).Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("chat_member: create game")
+		return nil
+	}
+	if game == nil {
+		// Game already exists for this chat — bot was re-added. Sending fresh invite
+		// messages would break existing button flows, so we ignore the event silently.
+		h.log.Warn().Str("chat", logger.ChatValue(c.Chat().ID, c.Chat().Title)).Msg("chat_member: game already exists, ignoring re-add")
 		return nil
 	}
 

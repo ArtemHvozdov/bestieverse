@@ -55,6 +55,12 @@ type OpenAIConfig struct {
 // MediaConfig holds the path to the media assets directory.
 type MediaConfig struct {
 	Path string
+	// CachePath is the JSON file used to persist Telegram file_ids across
+	// restarts. After the first successful upload, the file_id is reused on
+	// subsequent sends so the bot doesn't re-upload the same GIF — this is
+	// what keeps task_10 below Telegram's per-chat media flood limit on
+	// repeat runs.
+	CachePath string
 }
 
 // LogConfig holds logging configuration.
@@ -88,6 +94,7 @@ func Load() (*Config, error) {
 	cfg.OpenAI.Model = envOrDefault("OPENAI_MODEL", "gpt-image-1")
 
 	cfg.Media.Path = envOrDefault("MEDIA_PATH", "./assets/media")
+	cfg.Media.CachePath = envOrDefault("MEDIA_CACHE_PATH", "./data/media_cache.json")
 
 	cfg.Log.Level = envOrDefault("LOG_LEVEL", "info")
 	cfg.Log.File = os.Getenv("LOG_FILE")

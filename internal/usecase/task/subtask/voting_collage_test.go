@@ -39,6 +39,7 @@ type testMedia struct{}
 func (testMedia) GetFile(_ string) (*tele.Document, error)    { return nil, nil }
 func (testMedia) GetPhoto(_ string) (*tele.Photo, error)      { return nil, nil }
 func (testMedia) GetAnimation(_ string) (*tele.Animation, error) { return nil, nil }
+func (testMedia) CacheFileID(_, _ string)                     {}
 
 // ---- helpers ----
 

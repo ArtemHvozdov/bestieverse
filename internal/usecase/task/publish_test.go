@@ -23,6 +23,7 @@ type stubMedia struct{}
 func (s *stubMedia) GetFile(_ string) (*tele.Document, error)    { return nil, assert.AnError }
 func (s *stubMedia) GetPhoto(_ string) (*tele.Photo, error)      { return nil, assert.AnError }
 func (s *stubMedia) GetAnimation(_ string) (*tele.Animation, error) { return nil, assert.AnError }
+func (s *stubMedia) CacheFileID(_, _ string)                     {}
 
 func newPublisher(ctrl *gomock.Controller, sender *mockSender, tasks []config.Task) (*task.Publisher, *mocks.MockGameRepository) {
 	gameRepo := mocks.NewMockGameRepository(ctrl)

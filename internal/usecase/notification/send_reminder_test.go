@@ -132,6 +132,45 @@ func TestSendReminders_AlreadyNotified_NoRepeat(t *testing.T) {
 	}
 }
 
+func TestSendReminders_AdminOnlyTask_NoReminder(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	gameRepo := mocks.NewMockGameRepository(ctrl)
+	notifRepo := mocks.NewMockNotificationRepository(ctrl)
+	sender := &mockSender{}
+	log := zerolog.Nop()
+
+	published := time.Now().Add(-2 * time.Hour)
+	game := &entity.Game{
+		ID:                     1,
+		ChatID:                 100,
+		Status:                 entity.GameActive,
+		CurrentTaskOrder:       12,
+		CurrentTaskPublishedAt: &published,
+	}
+
+	adminOnlyCfg := &config.Config{
+		Tasks: []config.Task{
+			{ID: "task_12", Order: 12, Type: "admin_only"},
+		},
+		Messages: config.Messages{Reminder: []string{"Hey {{.Mention}}!"}},
+		Timings:  config.Timings{ReminderDelay: time.Hour},
+	}
+
+	gameRepo.EXPECT().GetAllActive(gomock.Any()).Return([]*entity.Game{game}, nil)
+	// GetUnnotifiedPlayers must NOT be called for admin_only tasks.
+
+	rs := notification.NewReminderSender(gameRepo, notifRepo, sender, adminOnlyCfg, log)
+	err := rs.SendReminders(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sender.sent != 0 {
+		t.Errorf("expected 0 reminders for admin_only task, got %d", sender.sent)
+	}
+}
+
 func TestSendReminders_ChecksGamePublishedAt_NotPlayerJoinedAt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
