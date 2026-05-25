@@ -79,7 +79,7 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 
 	if len(responses) == 0 {
 		text := config.Random(r.cfg.Messages.NaAnswers)
-		r.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
+		r.sender.Send(chat, text, formatter.ParseMode, tele.NoPreview) //nolint:errcheck
 
 		resultData, _ := json.Marshal(map[string]string{"type": "no_answers"})
 		if err := r.taskResultRepo.Create(ctx, &entity.TaskResult{

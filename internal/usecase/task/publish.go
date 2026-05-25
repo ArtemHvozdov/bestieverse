@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/delivery/bot/keyboard"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/infrastructure/media"
@@ -60,7 +61,7 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 
 	switch task.Type {
 	case "question_answer":
-		kbd := buildTaskKeyboard(task.ID)
+		kbd := keyboard.TaskKeyboard(task.ID)
 		if anim, err := p.media.GetAnimation(task.MediaFile); err == nil {
 			anim.Caption = task.Text
 			p.sender.Send(chat, anim, formatter.ParseMode, kbd) //nolint:errcheck
@@ -133,7 +134,7 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 		if len(task.Messages) > 1 {
 			time.Sleep(p.cfg.Timings.TaskInfoInterval)
 			msg1 := task.Messages[1]
-			kbd := buildTaskKeyboard(task.ID)
+			kbd := keyboard.TaskKeyboard(task.ID)
 			p.sender.Send(chat, msg1.Text, formatter.ParseMode, kbd) //nolint:errcheck
 		}
 	}
@@ -147,11 +148,3 @@ func (p *Publisher) Publish(ctx context.Context, game *entity.Game) error {
 	return nil
 }
 
-// buildTaskKeyboard constructs the inline keyboard attached to a published task.
-func buildTaskKeyboard(taskID string) *tele.ReplyMarkup {
-	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task_request", taskID)
-	skip := kbd.Data("Пропустити ⏭️", "task_skip", taskID)
-	kbd.Inline(kbd.Row(answer, skip))
-	return kbd
-}

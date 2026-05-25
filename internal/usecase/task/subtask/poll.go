@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/config"
+	"github.com/ArtemHvozdov/bestieverse.git/internal/delivery/bot/keyboard"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository"
 	"github.com/ArtemHvozdov/bestieverse.git/pkg/formatter"
@@ -93,12 +94,12 @@ func (h *PollHandler) publishFollowUp(_ context.Context, game *entity.Game, task
 
 	switch winner.ResultType {
 	case "question_answer":
-		kbd := buildPollTaskKeyboard(task.ID)
+		kbd := keyboard.TaskKeyboard(task.ID)
 		if _, err := h.sender.Send(chat, winner.PreparedText, formatter.ParseMode, kbd); err != nil {
 			return fmt.Errorf("subtask/poll.publishFollowUp: send: %w", err)
 		}
 	case "meme_voiceover":
-		kbd := buildMemeVoiceoverKeyboard(task.ID)
+		kbd := keyboard.MemeVoiceoverKeyboard(task.ID)
 		if _, err := h.sender.Send(chat, h.cfg.Messages.MemeVoiceoverAnnounce, formatter.ParseMode, kbd); err != nil {
 			return fmt.Errorf("subtask/poll.publishFollowUp: send meme announce: %w", err)
 		}
@@ -181,23 +182,3 @@ func (h *PollHandler) ForceClosed(ctx context.Context, game *entity.Game) error 
 	return h.publishFollowUp(ctx, game, task, winner)
 }
 
-// buildPollTaskKeyboard constructs the inline keyboard for a poll follow-up task.
-func buildPollTaskKeyboard(taskID string) *tele.ReplyMarkup {
-	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task_request", taskID)
-	skip := kbd.Data("Пропустити ⏭️", "task_skip", taskID)
-	kbd.Inline(kbd.Row(answer, skip))
-	return kbd
-}
-
-// buildMemeVoiceoverKeyboard constructs the keyboard for starting the meme voiceover subtask.
-// Uses the same button labels as regular tasks ("Хочу відповісти" / "Пропустити") for UX consistency.
-// The "Хочу відповісти" button keeps the task10_meme_request unique so it routes to
-// MemeVoiceoverHandler.HandleRequestAnswer rather than the generic RequestAnswerer.
-func buildMemeVoiceoverKeyboard(taskID string) *tele.ReplyMarkup {
-	kbd := &tele.ReplyMarkup{}
-	answer := kbd.Data("Хочу відповісти ✍️", "task10_meme_request")
-	skip := kbd.Data("Пропустити ⏭️", "task_skip", taskID)
-	kbd.Inline(kbd.Row(answer, skip))
-	return kbd
-}

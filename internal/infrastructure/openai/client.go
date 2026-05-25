@@ -30,7 +30,7 @@ func (c *Client) GenerateCollage(ctx context.Context, prompt string) ([]byte, er
 		Model:  c.model,
 		Prompt: prompt,
 		N:      1,
-		Size:   openai.CreateImageSize1024x1024,
+		Size:   openai.CreateImageSize1024x1536, // "1024x1536"
 	})
 	if err != nil {
 		return nil, fmt.Errorf("openai.GenerateCollage: create image: %w", err)

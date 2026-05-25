@@ -45,6 +45,17 @@ func TaskKeyboard(taskID string) *tele.ReplyMarkup {
 	return kbd
 }
 
+// MemeVoiceoverKeyboard returns the inline keyboard for the meme voiceover subtask (task_10b).
+// "Хочу відповісти" routes to task10_meme_request (MemeVoiceoverHandler), not the generic RequestAnswerer.
+// "Пропустити" reuses the generic task_skip route with taskID as payload.
+func MemeVoiceoverKeyboard(taskID string) *tele.ReplyMarkup {
+	kbd := &tele.ReplyMarkup{}
+	answer := kbd.Data("Хочу відповісти", "task10_meme_request")
+	skip := kbd.Data("Пропустити", "task_skip", taskID)
+	kbd.Inline(kbd.Row(answer, skip))
+	return kbd
+}
+
 // PlayerSelectionKeyboard returns the inline keyboard for player selection in task_04.
 // Buttons are laid out 2 per row; an odd trailing button occupies its own row (Telegram
 // stretches it to full width automatically).
