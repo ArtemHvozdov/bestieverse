@@ -302,11 +302,15 @@ func (h *MemeVoiceoverHandler) HandleAnswer(
 		return fmt.Errorf("subtask.meme_voiceover.HandleAnswer: set idle: %w", err)
 	}
 
-	text, renderErr := formatter.RenderTemplate(config.Random(h.msgs.MemeVoiceoverDone), struct{ Mention string }{mention})
-	if renderErr != nil {
-		text = config.Random(h.msgs.MemeVoiceoverDone)
+	// Send standard "answer accepted" message consistent with all other task types.
+	// Auto-delete after DeleteMessageDelay, same as answer.go.
+	text, _ := formatter.RenderTemplate(h.msgs.AnswerAccepted, struct {
+		Mention string
+		TaskNum int
+	}{Mention: mention, TaskNum: task.Order})
+	if doneMsg, sendErr := h.sender.Send(chat, text, formatter.ParseMode); sendErr == nil && doneMsg != nil {
+		deleteAfter(h.sender, doneMsg, h.timings.DeleteMessageDelay)
 	}
-	h.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
 
 	h.log.Info().
 		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).

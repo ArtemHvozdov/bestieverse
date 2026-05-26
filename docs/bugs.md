@@ -646,5 +646,11 @@ bot-1  | 2026-05-23 14:19:21 INF meme_voiceover: sent next meme chat="(-10026176
 **Изменённые файлы:** `internal/usecase/task/subtask/meme_voiceover.go`, `internal/usecase/task/subtask/meme_voiceover_test.go`.
 
 
-## Bug #29
-**Симптом:** В таске 10, когда побеждает вариант озвучки мемов и запускается подтаска с озвучкой мемов, когда юзер озвучил все мемы, вместо вариаативного сообщения бот дожен отправлять обыные для всех тасок "{{.Mention}} дякую! Твою відповідь на завдання #{{.TaskNum}} прийнято ✅" и удалться через 10 секунд как и во всех тасках. Так бот должен отвечать на любую победившую в голосовании сабтаску в таске 10, не важно это танец, пропеть песню или озвучка мемов
+## Bug #29 [FIXED]
+**Симптом:** В таске 10, когда побеждает вариант озвучки мемов и запускается подтаска с озвучкой мемов, когда юзер озвучил все мемы, вместо вариативного сообщения бот должен отправлять стандартное для всех тасок "{{.Mention}} дякую! Твою відповідь на завдання #{{.TaskNum}} прийнято ✅" и удалять через 10 секунд как и во всех тасках. Так бот должен отвечать на любую победившую в голосовании сабтаску в таске 10, не важно это танец, пропеть песню или озвучка мемов.
+
+**Причина:** В `HandleAnswer` (`internal/usecase/task/subtask/meme_voiceover.go`) при финализации (все мемы озвучены) отправлялось кастомное сообщение из `h.msgs.MemeVoiceoverDone` без auto-delete. По архитектурному паттерну проекта, при завершении ответа на любую таску должен отправляться стандартный `msgs.AnswerAccepted` с `{{.Mention}}` и `{{.TaskNum}}`, который автоматически удаляется через `DeleteMessageDelay` (см. `answer.go`).
+
+**Исправление:** Блок отправки `MemeVoiceoverDone` заменён на рендеринг `h.msgs.AnswerAccepted` с данными `struct{ Mention string; TaskNum int }` где `TaskNum = task.Order`. Сообщение отправляется и автоудаляется через `deleteAfter`. В `testMemeMsgs()` добавлено поле `AnswerAccepted`. Тест `TestMemeHandleAnswer_LastMeme_FinalizesAndSendsDoneMessage` обновлён: добавлен `time.Sleep(5ms)` и проверка `sender.deleted == 1`.
+
+**Изменённые файлы:** `internal/usecase/task/subtask/meme_voiceover.go`, `internal/usecase/task/subtask/meme_voiceover_test.go`.

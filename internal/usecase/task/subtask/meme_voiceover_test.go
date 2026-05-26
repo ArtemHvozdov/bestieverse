@@ -45,6 +45,7 @@ func testMemeMsgs() *config.Messages {
 		SubtaskLocked:     "{{.Mention}} зачекайте",
 		AlreadyAnswered:   []string{"{{.Mention}} вже відповів"},
 		AwaitingAnswer:    []string{"{{.Mention}} відповідай!"},
+		AnswerAccepted:    "{{.Mention}} дякую! Твою відповідь на завдання #{{.TaskNum}} прийнято ✅",
 		MemeVoiceoverDone: []string{"{{.Mention}} чудово!"},
 	}
 }
@@ -268,9 +269,10 @@ func TestMemeHandleAnswer_LastMeme_FinalizesAndSendsDoneMessage(t *testing.T) {
 	msg := &tele.Message{Text: "Озвучка другого мема!"}
 	err := h.HandleAnswer(ctx, game, player, task, msg)
 	require.NoError(t, err)
-	// Final "done" message sent.
+	// Standard AnswerAccepted message sent and then auto-deleted.
 	assert.Equal(t, 1, len(sender.sent))
-	assert.Equal(t, 0, sender.deleted)
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 1, sender.deleted)
 }
 
 func TestMemeHandleAnswer_NonTextMessage_Accepted(t *testing.T) {
