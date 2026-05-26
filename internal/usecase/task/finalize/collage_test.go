@@ -184,8 +184,8 @@ func TestCollageFinalizer_MessagesSent(t *testing.T) {
 	err := f.Finalize(context.Background(), game, task, responses)
 	require.NoError(t, err)
 
-	// pending_text (string) + photo (*tele.Photo) + doc (*tele.Document) = 3 messages
-	require.Equal(t, 3, len(sender.sent))
+	// pending_text (string) + photo (*tele.Photo) = 2 messages (document removed per Bug #27)
+	require.Equal(t, 2, len(sender.sent))
 	assert.Equal(t, task.Summary.PendingText, sender.sent[0])
 
 	// Wait for the goroutine that schedules temp file cleanup to fire without panicking.

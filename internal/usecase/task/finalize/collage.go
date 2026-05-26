@@ -96,14 +96,6 @@ func (f *CollageFinalizer) Finalize(
 	}
 	f.sender.Send(chat, photo, tele.ModeHTML) //nolint:errcheck
 
-	doc := &tele.Document{
-		File:     tele.FromDisk(collagePath),
-		MIME:     "image/jpeg",
-		FileName: "collage_2160x2160.jpg",
-		Caption:  task.Summary.HqText,
-	}
-	f.sender.Send(chat, doc, tele.ModeHTML) //nolint:errcheck
-
 	go func() {
 		time.Sleep(5 * time.Second)
 		if err := os.Remove(collagePath); err != nil {

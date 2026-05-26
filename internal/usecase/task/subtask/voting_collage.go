@@ -225,7 +225,9 @@ func (h *VotingCollageHandler) HandleCategoryChoice(
 		if renderErr != nil {
 			text = followup
 		}
-		h.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
+		if msg, err := h.sender.Send(chat, text, formatter.ParseMode); err == nil && msg != nil {
+			deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
+		}
 	}
 
 	h.log.Info().

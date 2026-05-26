@@ -615,14 +615,22 @@ bot-1  | 2026-05-23 14:19:21 INF meme_voiceover: sent next meme chat="(-10026176
 **Изменённые файлы:** `internal/config/timings.go`, `internal/config/timings_test.go`, `cmd/scheduler/main.go`, `.env.example`.
 
 
-## Bug #26
+## Bug #26 [FIXED]
 **Симптом:** В таске 2, когда юзер дал ответы на все вопросы, бот отправляет вариативное сообщение юзера, что как только все юзеры ответят на вопросы, бот создаст коллаж. Сейчас это сообщение не удаляется. Нужно чтобы удалялось через 10 секунд. Время удаленя сообщений прописано в .env. файле.
 
+**Причина:** В `HandleCategoryChoice` (`internal/usecase/task/subtask/voting_collage.go`) при финализации всех категорий followup-сообщение отправлялось через `h.sender.Send(...)` без сохранения возвращённого `*tele.Message`. Без ссылки на сообщение вызвать `deleteAfter` было невозможно.
 
-## Bug #27
+**Исправление:** Захватываем возвращённое сообщение: `if msg, err := h.sender.Send(...); err == nil && msg != nil { deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay) }`. Теперь followup удаляется через `DeleteMessageDelay` (10 секунд в prod). Тест `TestHandleCategryChoice_LastCategory_FinalizesAndSendsFollowup` не требовал изменений — он уже проверял `len(sender.sent) == 1`, но не проверял удаление followup; логика удаления тестируется через `DeleteMessageDelay: time.Millisecond` в `testTimings()`.
+
+
+## Bug #27 [FIXED]
 **Симптом:** В таске 2, когда подводяться итоги, отправляется 3 сообщения:
 1. "Чекайте-чекайте, меджик у процесі … 🧚"
 2. "Готово! Ловіть колаж із відповідей, які набрали найбільшу кількість голосів. Схоже на те, що подобається вашій гьорлз бенд? 💅" + изображение сгенерированного коллажа.
 3. "Cупер висока якість для моїх aesthetic girls 🎀"
 
 Нужно оставить только первые 2 сообщения. Коллаж для 3 сообщения не нужен.
+
+**Причина:** В `CollageFinalizer.Finalize` (`internal/usecase/task/finalize/collage.go`) после отправки фото-коллажа с подписью `ReadyText` отдельным блоком создавался и отправлялся `*tele.Document` с тем же файлом коллажа и подписью `HqText`.
+
+**Исправление:** Удалён блок создания и отправки документа (`doc := &tele.Document{...}` + `f.sender.Send(chat, doc, ...)`). Теперь финализатор отправляет ровно 2 сообщения: `PendingText` + `*tele.Photo` с `ReadyText`. Обновлён тест `TestCollageFinalizer_MessagesSent`: ожидание изменено с 3 сообщений на 2. Поле `HqText` в `config.TaskSummary` остаётся в структуре (его удаление потребовало бы изменения YAML и всех тестов), но больше не используется в `CollageFinalizer`.
