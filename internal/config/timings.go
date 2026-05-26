@@ -103,9 +103,9 @@ func loadTestTimings() (Timings, error) {
 	if err != nil {
 		return Timings{}, fmt.Errorf("TASK_INFO_INTERVAL: %w", err)
 	}
-	lockTimeout, err := parseDurationEnv("SUBTASK_LOCK_TIMEOUT", "1m")
+	lockTimeout, err := parseDurationEnv("TEST_SUBTASK_LOCK_TIMEOUT", "2m")
 	if err != nil {
-		return Timings{}, fmt.Errorf("SUBTASK_LOCK_TIMEOUT: %w", err)
+		return Timings{}, fmt.Errorf("TEST_SUBTASK_LOCK_TIMEOUT: %w", err)
 	}
 	publishInterval, err := parseDurationEnv("TEST_TASK_PUBLISH_INTERVAL", "2m")
 	if err != nil {

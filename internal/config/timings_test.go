@@ -30,6 +30,7 @@ func TestLoadTestTimings_UsesTestEnvVars(t *testing.T) {
 	t.Setenv("TEST_TASK_FINALIZE_OFFSET", "1m50s")
 	t.Setenv("TEST_REMINDER_DELAY", "30s")
 	t.Setenv("TEST_POLL_DURATION", "1m")
+	t.Setenv("TEST_SUBTASK_LOCK_TIMEOUT", "2m")
 
 	timings, err := loadTimings(true)
 	require.NoError(t, err)
@@ -38,6 +39,23 @@ func TestLoadTestTimings_UsesTestEnvVars(t *testing.T) {
 	assert.Equal(t, 110*time.Second, timings.TaskFinalizeOffset)
 	assert.Equal(t, 30*time.Second, timings.ReminderDelay)
 	assert.Equal(t, time.Minute, timings.PollDuration)
+	assert.Equal(t, 2*time.Minute, timings.SubtaskLockTimeout)
+}
+
+// TestLoadTestTimings_LockTimeout_NotAffectedByProdVar ensures that in TEST_MODE
+// the lock timeout is read from TEST_SUBTASK_LOCK_TIMEOUT, not from SUBTASK_LOCK_TIMEOUT.
+// This was Bug #25: the prod variable (SUBTASK_LOCK_TIMEOUT=15m) bled into test mode.
+func TestLoadTestTimings_LockTimeout_NotAffectedByProdVar(t *testing.T) {
+	// Simulate the common .env setup: prod var set to 15m, test var unset.
+	t.Setenv("SUBTASK_LOCK_TIMEOUT", "15m")
+	t.Setenv("TEST_SUBTASK_LOCK_TIMEOUT", "")
+
+	timings, err := loadTimings(true)
+	require.NoError(t, err)
+
+	// Must use the default for TEST_SUBTASK_LOCK_TIMEOUT (2m), NOT the prod value (15m).
+	assert.Equal(t, 2*time.Minute, timings.SubtaskLockTimeout,
+		"test mode must use TEST_SUBTASK_LOCK_TIMEOUT, not SUBTASK_LOCK_TIMEOUT")
 }
 
 func TestLoadProdTimings_UsesDefaultsWhenEnvNotSet(t *testing.T) {

@@ -21,6 +21,17 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+// releaseExpiredLocks deletes all task_locks rows whose expires_at is in the past.
+// This is called on every tick so that an abandoned subtask lock (player got the
+// lock but stopped responding) is freed after SubtaskLockTimeout, even when no
+// other player presses "Хочу відповісти" (which is the only other place that
+// triggers ReleaseExpired via TryAcquire).
+func releaseExpiredLocks(ctx context.Context, lockRepo repository.TaskLockRepository, log zerolog.Logger) {
+	if err := lockRepo.ReleaseExpired(ctx); err != nil {
+		log.Error().Err(err).Msg("scheduler: release expired locks")
+	}
+}
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -40,6 +51,7 @@ func main() {
 	taskResponseRepo := mysqlrepo.NewTaskResponseRepo(db)
 	taskResultRepo := mysqlrepo.NewTaskResultRepo(db)
 	playerRepo := mysqlrepo.NewPlayerRepo(db)
+	taskLockRepo := mysqlrepo.NewTaskLockRepo(db)
 
 	bot, err := telegram.NewBot(cfg.Bot.Token, tele.Settings{
 		Poller: &tele.LongPoller{Timeout: 10},
@@ -72,13 +84,13 @@ func main() {
 
 	// Run immediately on start to catch events that may have been missed during downtime,
 	// then poll every 15 seconds to keep timing error well below the shortest test interval.
-	tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, pollHandler, log)
+	tick(context.Background(), cfg, gameRepo, taskLockRepo, publisher, finalizeRouter, pollHandler, log)
 
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		tick(context.Background(), cfg, gameRepo, publisher, finalizeRouter, pollHandler, log)
+		tick(context.Background(), cfg, gameRepo, taskLockRepo, publisher, finalizeRouter, pollHandler, log)
 	}
 }
 
@@ -86,11 +98,18 @@ func tick(
 	ctx context.Context,
 	cfg *config.Config,
 	gameRepo repository.GameRepository,
+	lockRepo repository.TaskLockRepository,
 	publisher *taskuc.Publisher,
 	finalizeRouter *finalize.FinalizeRouter,
 	pollHandler *subtask.PollHandler,
 	log zerolog.Logger,
 ) {
+	// Proactively release any locks whose timeout has elapsed. This ensures that
+	// an abandoned subtask lock (e.g. a player pressed "Хочу відповісти" but then
+	// stopped responding) is freed after SubtaskLockTimeout even if no other player
+	// tries to acquire the lock via TryAcquire.
+	releaseExpiredLocks(ctx, lockRepo, log)
+
 	games, err := gameRepo.GetAllActive(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("scheduler: get active games")
