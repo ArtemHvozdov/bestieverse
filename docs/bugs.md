@@ -634,3 +634,17 @@ bot-1  | 2026-05-23 14:19:21 INF meme_voiceover: sent next meme chat="(-10026176
 **Причина:** В `CollageFinalizer.Finalize` (`internal/usecase/task/finalize/collage.go`) после отправки фото-коллажа с подписью `ReadyText` отдельным блоком создавался и отправлялся `*tele.Document` с тем же файлом коллажа и подписью `HqText`.
 
 **Исправление:** Удалён блок создания и отправки документа (`doc := &tele.Document{...}` + `f.sender.Send(chat, doc, ...)`). Теперь финализатор отправляет ровно 2 сообщения: `PendingText` + `*tele.Photo` с `ReadyText`. Обновлён тест `TestCollageFinalizer_MessagesSent`: ожидание изменено с 3 сообщений на 2. Поле `HqText` в `config.TaskSummary` остаётся в структуре (его удаление потребовало бы изменения YAML и всех тестов), но больше не используется в `CollageFinalizer`.
+
+
+## Bug #28 [FIXED]
+**Симптом:** В таске 10, когда побеждает вариант озвучки мемов и запускается подтаска с озвучкой мемов, когда юзер нажимает на кнопку Хочу відповісти, бот должен отправлять вариативное сообщение о том, что ожидает ответа от юзера и через 10 секунд удалять это сообщение как и во всех тасках
+
+**Причина:** В `HandleRequestAnswer` (`internal/usecase/task/subtask/meme_voiceover.go`) после захвата лока, установки прогресса и перевода игрока в состояние `awaiting_answer` — бот сразу отправлял первый мем, не отправляя вариативное `AwaitingAnswer`-сообщение. Все остальные обработчики тасок (см. `request_answer.go`) отправляют случайное сообщение из `msgs.AwaitingAnswer` с `{{.Mention}}` и автоудалением через `DeleteMessageDelay`.
+
+**Исправление:** В `HandleRequestAnswer` после успешного `playerStateRepo.Upsert` добавлена отправка вариативного сообщения `config.Random(h.msgs.AwaitingAnswer)` через `formatter.RenderTemplate` с `{{.Mention}}` и `deleteAfter(h.sender, awaitingMsg, h.timings.DeleteMessageDelay)`. Обновлены тесты: в `testMemeMsgs()` добавлено поле `AwaitingAnswer`; тесты `TestMemeHandleRequestAnswer_LockFree_AcquiresAndSendsFirstMeme` и `TestMemeHandleRequestAnswer_SecondPlayer_GetsCorrectSlot` — ожидаемое `len(sender.sent)` изменено с `1` на `2` (awaiting-сообщение + первый мем).
+
+**Изменённые файлы:** `internal/usecase/task/subtask/meme_voiceover.go`, `internal/usecase/task/subtask/meme_voiceover_test.go`.
+
+
+## Bug #29
+**Симптом:** В таске 10, когда побеждает вариант озвучки мемов и запускается подтаска с озвучкой мемов, когда юзер озвучил все мемы, вместо вариаативного сообщения бот дожен отправлять обыные для всех тасок "{{.Mention}} дякую! Твою відповідь на завдання #{{.TaskNum}} прийнято ✅" и удалться через 10 секунд как и во всех тасках. Так бот должен отвечать на любую победившую в голосовании сабтаску в таске 10, не важно это танец, пропеть песню или озвучка мемов

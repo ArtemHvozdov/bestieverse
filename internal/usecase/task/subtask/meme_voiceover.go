@@ -168,6 +168,13 @@ func (h *MemeVoiceoverHandler) HandleRequestAnswer(
 		return fmt.Errorf("subtask.meme_voiceover.HandleRequestAnswer: upsert state: %w", err)
 	}
 
+	// Send variative awaiting-answer message and auto-delete after DeleteMessageDelay,
+	// same as all other task types (see request_answer.go).
+	awaitingText, _ := formatter.RenderTemplate(config.Random(h.msgs.AwaitingAnswer), struct{ Mention string }{mention})
+	if awaitingMsg, sendErr := h.sender.Send(chat, awaitingText, formatter.ParseMode); sendErr == nil && awaitingMsg != nil {
+		deleteAfter(h.sender, awaitingMsg, h.timings.DeleteMessageDelay)
+	}
+
 	if currentIdx >= len(memeFiles) {
 		return fmt.Errorf("subtask.meme_voiceover.HandleRequestAnswer: meme index %d out of range (total %d)", currentIdx, len(memeFiles))
 	}

@@ -44,6 +44,7 @@ func testMemeMsgs() *config.Messages {
 	return &config.Messages{
 		SubtaskLocked:     "{{.Mention}} зачекайте",
 		AlreadyAnswered:   []string{"{{.Mention}} вже відповів"},
+		AwaitingAnswer:    []string{"{{.Mention}} відповідай!"},
 		MemeVoiceoverDone: []string{"{{.Mention}} чудово!"},
 	}
 }
@@ -108,8 +109,8 @@ func TestMemeHandleRequestAnswer_LockFree_AcquiresAndSendsFirstMeme(t *testing.T
 
 	err := h.HandleRequestAnswer(ctx, game, player, task)
 	require.NoError(t, err)
-	// First meme of player's slot sent.
-	assert.Equal(t, 1, len(sender.sent))
+	// awaiting_answer message + first meme of player's slot.
+	assert.Equal(t, 2, len(sender.sent))
 }
 
 func TestMemeHandleRequestAnswer_LockHeldByOther_SendsLockedMessage(t *testing.T) {
@@ -402,6 +403,6 @@ func TestMemeHandleRequestAnswer_SecondPlayer_GetsCorrectSlot(t *testing.T) {
 
 	err := h.HandleRequestAnswer(ctx, game, player2, task)
 	require.NoError(t, err)
-	// Meme at index 2 (meme_03) was sent — second player's first meme.
-	assert.Equal(t, 1, len(sender.sent))
+	// awaiting_answer message + meme at index 2 (meme_03) — second player's first meme.
+	assert.Equal(t, 2, len(sender.sent))
 }
