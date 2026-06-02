@@ -204,16 +204,16 @@ func (h *AdminOnlyHandler) HandleAnswer(
 		h.sender.Delete(&tele.Message{ID: pd.QuestionMsgID, Chat: &tele.Chat{ID: game.ChatID}}) //nolint:errcheck
 	}
 
-	// Reply acknowledging the answer; auto-deletes after delay.
-	replyText := config.Random(h.msgs.Task12Reply)
-	replyMsg, _ := h.sender.Send(chat, replyText, formatter.ParseMode)
-	if replyMsg != nil {
-		deleteAfter(h.sender, replyMsg, h.timings.DeleteMessageDelay)
-	}
-
 	progress.QuestionIndex++
 
 	if progress.QuestionIndex < len(task.Questions) {
+		// Intermediate question: acknowledge the answer, then send the next question.
+		replyText := config.Random(h.msgs.Task12Reply)
+		replyMsg, _ := h.sender.Send(chat, replyText, formatter.ParseMode)
+		if replyMsg != nil {
+			deleteAfter(h.sender, replyMsg, h.timings.DeleteMessageDelay)
+		}
+
 		nextMsgID := h.sendQuestionMsg(chat, task, progress.QuestionIndex)
 		pd.QuestionMsgID = nextMsgID
 		updatedData, _ := json.Marshal(pd)
@@ -224,6 +224,7 @@ func (h *AdminOnlyHandler) HandleAnswer(
 		return nil
 	}
 
+	// Last question answered — skip feedback and go straight to collage generation.
 	return h.completeAdminTask(ctx, game, player, task, pd.Answers)
 }
 

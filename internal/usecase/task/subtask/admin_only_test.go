@@ -356,8 +356,8 @@ func TestAdminHandleAnswer_LastQuestion_CallsOpenAIAndSavesResponse(t *testing.T
 	assert.Equal(t, "Київ", answers["city"])
 	assert.Equal(t, "The Beatles", answers["concert"])
 
-	// Question deleted synchronously; reply deleted async after delay.
+	// Only the question message is deleted (no reply sent for the last question).
 	time.Sleep(5 * time.Millisecond)
-	assert.Equal(t, 2, sender.deleted) // question + reply both deleted
-	assert.GreaterOrEqual(t, len(sender.sent), 2)
+	assert.Equal(t, 1, sender.deleted) // question deleted; no reply to delete
+	assert.GreaterOrEqual(t, len(sender.sent), 1)
 }

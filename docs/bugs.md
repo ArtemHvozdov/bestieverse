@@ -680,5 +680,11 @@ bot-1  | 2026-05-23 14:19:21 INF meme_voiceover: sent next meme chat="(-10026176
 **Изменённые файлы:** `internal/usecase/task/finalize/router.go`, `internal/usecase/task/finalize/router_test.go`.
 
 
-## Bug #32
+## Bug #32 [FIXED]
 **Симптом:** В таске 12, когда админ уже отвечает на вопросы нажимая на кнопку Поділитися мрією, после каждого ответа бот отправляет сообщение-фидбек. Когда юзер ответил на последний вопрос, это сообщение-фидбек отправлять не нужно. Нужно сразу перейти к логике генерации коллажа.
+
+**Причина:** В `HandleAnswer` (`internal/usecase/task/subtask/admin_only.go`) отправка reply (`Task12Reply`) и планирование его автоудаления происходили **до** проверки `progress.QuestionIndex < len(task.Questions)` — то есть безусловно после каждого ответа, включая последний.
+
+**Исправление:** Блок отправки reply перемещён внутрь ветки `if progress.QuestionIndex < len(task.Questions)` (промежуточный вопрос). Для последнего вопроса reply не отправляется — управление сразу передаётся в `completeAdminTask`. Обновлён тест `TestAdminHandleAnswer_LastQuestion_CallsOpenAIAndSavesResponse`: ожидание `deleted == 2` (вопрос + reply) заменено на `deleted == 1` (только вопрос).
+
+**Изменённые файлы:** `internal/usecase/task/subtask/admin_only.go`, `internal/usecase/task/subtask/admin_only_test.go`.
