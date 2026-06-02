@@ -17,6 +17,10 @@ type Timings struct {
 	// Subtask exclusive lock
 	SubtaskLockTimeout time.Duration // 15m — lock timeout for exclusive subtasks
 
+	// Task12IntroDelay is the pause between the intro message and the first
+	// question in task_12 (admin_only). Gives the chat time to read the intro.
+	Task12IntroDelay time.Duration
+
 	// MemeColdCacheDelay is the pause inserted before uploading a meme GIF
 	// (task_10) whose file_id is not yet cached. It spreads cold uploads enough
 	// to stay under Telegram's per-chat media burst limit on the very first run;
@@ -76,6 +80,10 @@ func loadProdTimings() (Timings, error) {
 	if err != nil {
 		return Timings{}, fmt.Errorf("MEME_COLD_CACHE_DELAY: %w", err)
 	}
+	task12IntroDelay, err := parseDurationEnv("TASK12_INTRO_DELAY", "2s")
+	if err != nil {
+		return Timings{}, fmt.Errorf("TASK12_INTRO_DELAY: %w", err)
+	}
 
 	return Timings{
 		DeleteMessageDelay:  deleteDelay,
@@ -83,6 +91,7 @@ func loadProdTimings() (Timings, error) {
 		TaskInfoInterval:    taskInfo,
 		SubtaskLockTimeout:  lockTimeout,
 		MemeColdCacheDelay:  memeColdDelay,
+		Task12IntroDelay:    task12IntroDelay,
 		TaskPublishInterval: publishInterval,
 		TaskFinalizeOffset:  finalizeOffset,
 		PollDuration:        pollDuration,
@@ -127,6 +136,10 @@ func loadTestTimings() (Timings, error) {
 	if err != nil {
 		return Timings{}, fmt.Errorf("TEST_MEME_COLD_CACHE_DELAY: %w", err)
 	}
+	task12IntroDelay, err := parseDurationEnv("TEST_TASK12_INTRO_DELAY", "500ms")
+	if err != nil {
+		return Timings{}, fmt.Errorf("TEST_TASK12_INTRO_DELAY: %w", err)
+	}
 
 	return Timings{
 		DeleteMessageDelay:  deleteDelay,
@@ -134,6 +147,7 @@ func loadTestTimings() (Timings, error) {
 		TaskInfoInterval:    taskInfo,
 		SubtaskLockTimeout:  lockTimeout,
 		MemeColdCacheDelay:  memeColdDelay,
+		Task12IntroDelay:    task12IntroDelay,
 		TaskPublishInterval: publishInterval,
 		TaskFinalizeOffset:  finalizeOffset,
 		PollDuration:        pollDuration,

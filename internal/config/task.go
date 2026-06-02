@@ -27,6 +27,11 @@ type Task struct {
 
 	// OpenAI image generation config for task_12.
 	OpenAI *TaskOpenAI `yaml:"openai"`
+
+	// RequestAnswerIntro is an optional text sent to the chat right after
+	// the admin presses "Хочу відповісти" on task_12, before the first question.
+	// If empty, no intro message is sent.
+	RequestAnswerIntro string `yaml:"request_answer_intro"`
 }
 
 // TaskSummary holds the finalization config for a task.

@@ -124,6 +124,12 @@ func (h *AdminOnlyHandler) HandleRequestAnswer(
 		return fmt.Errorf("subtask.admin_only.HandleRequestAnswer: upsert state: %w", err)
 	}
 
+	// Send optional intro message before the first question.
+	if task.RequestAnswerIntro != "" {
+		h.sender.Send(chat, task.RequestAnswerIntro, formatter.ParseMode) //nolint:errcheck
+		time.Sleep(h.timings.Task12IntroDelay)
+	}
+
 	msgID := h.sendQuestionMsg(chat, task, 0)
 	pd := adminProgressData{Answers: make(map[string]string), QuestionMsgID: msgID}
 	data, _ := json.Marshal(pd)
