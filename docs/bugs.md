@@ -668,8 +668,16 @@ bot-1  | 2026-05-23 14:19:21 INF meme_voiceover: sent next meme chat="(-10026176
 5. В `.env.example` добавлены переменные `TASK12_INTRO_DELAY=2s` и `TEST_TASK12_INTRO_DELAY=500ms`.
 
 
-## Bug #31
+## Bug #31 [FIXED]
 **Симптом::** В таске 12, если нет ответа от админа, то сейчас публикуется случайное вариативное сообщение-фидбек, если нет ответа. Ддя этой таски есть отдельное сообщение, я его добавил в файле @task_12.yaml в поле followup. Проверь, правильно я описал текст с учатоем форматирования. Если нет ответа от юзера, то бот должен отправлять именно это сообщение, а не случайное вариативное.
+
+**Причина:** В `FinalizeRouter.Finalize` (`internal/usecase/task/finalize/router.go`) в ветке `len(responses) == 0` текст всегда брался из `config.Random(r.cfg.Messages.NaAnswers)` — без проверки поля `task.Followup`. Для task_12 в YAML задан `followup` со специфическим текстом, который должен иметь приоритет над общим вариативным сообщением.
+
+**Форматирование `followup` в task_12.yaml:** проверено — HTML-теги `<b>` и `<a href>` корректны, отправка идёт с `formatter.ParseMode` (ModeHTML) + `tele.NoPreview` (подавляет превью ссылки), всё правильно.
+
+**Исправление:** В ветке `len(responses) == 0` добавлена проверка: если `task.Type == "admin_only"` И `len(task.Followup) > 0` — использовать `task.Followup[0]`; иначе — прежнее поведение (`config.Random(r.cfg.Messages.NaAnswers)`). Условие сужено до `admin_only`, потому что `Followup` задан также в task_02 и task_04 — там это сообщения "жди остальных", отправляемые subtask-хендлерами, а не финализатором. Добавлены тесты `TestRouter_NoResponses_AdminOnly_SendsFollowupText` и `TestRouter_NoResponses_NonAdminWithFollowup_SendsNaAnswers`.
+
+**Изменённые файлы:** `internal/usecase/task/finalize/router.go`, `internal/usecase/task/finalize/router_test.go`.
 
 
 ## Bug #32

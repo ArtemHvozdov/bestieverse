@@ -78,7 +78,14 @@ func (r *FinalizeRouter) Finalize(ctx context.Context, game *entity.Game, task *
 	chat := &tele.Chat{ID: game.ChatID}
 
 	if len(responses) == 0 {
-		text := config.Random(r.cfg.Messages.NaAnswers)
+		var text string
+		// admin_only tasks define their own "no answer" message in task.Followup;
+		// all other tasks fall back to the generic variative NaAnswers message.
+		if task.Type == "admin_only" && len(task.Followup) > 0 {
+			text = task.Followup[0]
+		} else {
+			text = config.Random(r.cfg.Messages.NaAnswers)
+		}
 		r.sender.Send(chat, text, formatter.ParseMode, tele.NoPreview) //nolint:errcheck
 
 		resultData, _ := json.Marshal(map[string]string{"type": "no_answers"})

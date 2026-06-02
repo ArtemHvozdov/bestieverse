@@ -83,6 +83,90 @@ func TestRouter_NoResponses_SendsNaAnswers(t *testing.T) {
 	}
 }
 
+// TestRouter_NoResponses_AdminOnly_SendsFollowupText verifies that admin_only tasks
+// use their own Followup text instead of the generic NaAnswers message.
+func TestRouter_NoResponses_AdminOnly_SendsFollowupText(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
+	gameRepo := mocks.NewMockGameRepository(ctrl)
+	sender := &mockSender{}
+	stub := &stubFinalizer{summaryType: "openai_collage"}
+
+	game := &entity.Game{ID: 1, ChatID: 100}
+	task := &config.Task{
+		ID:       "task_12",
+		Order:    1,
+		Type:     "admin_only",
+		Summary:  config.TaskSummary{Type: "openai_collage"},
+		Followup: []string{"Специфічне повідомлення для цієї таски"},
+	}
+
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
+	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
+	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
+		[]config.Task{{Order: 1}, {Order: 2}}, stub)
+
+	err := router.Finalize(context.Background(), game, task)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sender.sent) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(sender.sent))
+	}
+	if got, ok := sender.sent[0].(string); !ok || got != "Специфічне повідомлення для цієї таски" {
+		t.Errorf("expected followup text, got %v", sender.sent[0])
+	}
+	if stub.called {
+		t.Error("finalizer should not be called when no responses")
+	}
+}
+
+// TestRouter_NoResponses_NonAdminWithFollowup_SendsNaAnswers verifies that tasks
+// other than admin_only (e.g. voting_collage) use the generic NaAnswers message
+// even if they have a Followup field (used for a different purpose by subtask handlers).
+func TestRouter_NoResponses_NonAdminWithFollowup_SendsNaAnswers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
+	gameRepo := mocks.NewMockGameRepository(ctrl)
+	sender := &mockSender{}
+	stub := &stubFinalizer{summaryType: "collage"}
+
+	game := &entity.Game{ID: 1, ChatID: 100}
+	task := &config.Task{
+		ID:       "task_02",
+		Order:    1,
+		Type:     "voting_collage",
+		Summary:  config.TaskSummary{Type: "collage"},
+		Followup: []string{"{{.Mention}} дякую, пандочко 🐼 Очікуй..."},
+	}
+
+	taskResultRepo.EXPECT().GetByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
+	taskResponseRepo.EXPECT().GetAllByTask(gomock.Any(), game.ID, task.ID).Return(nil, nil)
+	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+
+	router := makeRouter(ctrl, taskResponseRepo, taskResultRepo, gameRepo, sender,
+		[]config.Task{{Order: 1}, {Order: 2}}, stub)
+
+	err := router.Finalize(context.Background(), game, task)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sender.sent) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(sender.sent))
+	}
+	if got, ok := sender.sent[0].(string); !ok || got != "no answers" {
+		t.Errorf("expected generic NaAnswers text, got %v", sender.sent[0])
+	}
+}
+
 func TestRouter_DispatchesToFinalizer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
