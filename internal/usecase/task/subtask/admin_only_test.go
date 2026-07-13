@@ -52,10 +52,11 @@ func testAdminTask() *config.Task {
 
 func testAdminMsgs() *config.Messages {
 	return &config.Messages{
-		Task12OnlyAdmin:      "{{.Mention}} тільки адмін",
-		Task12AwaitingAnswer: []string{"Пиши!"},
-		Task12Reply:          []string{"Дякую!"},
-		AlreadyAnswered:      []string{"{{.Mention}} вже відповів"},
+		Task12OnlyAdmin:       "{{.Mention}} тільки адмін",
+		Task12AwaitingAnswer:  []string{"Пиши!"},
+		Task12Reply:           []string{"Дякую!"},
+		Task12AlreadyAnswered: []string{"На це питання ти вже відповів"},
+		AlreadyAnswered:       []string{"{{.Mention}} вже відповів"},
 	}
 }
 
@@ -206,7 +207,7 @@ func TestAdminHandleRequestAnswer_AlreadyAnswered_SendsDismissal(t *testing.T) {
 
 // ---- HandleButtonPress tests ----
 
-func TestAdminHandleButtonPress_SendsAwaitingAnswer(t *testing.T) {
+func TestAdminHandleButtonPress_NonAdmin_SendsDismissal(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -215,6 +216,49 @@ func TestAdminHandleButtonPress_SendsAwaitingAnswer(t *testing.T) {
 	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
 	playerStateRepo := mocks.NewMockPlayerStateRepository(ctrl)
 	sender := &testSender{}
+
+	// Non-admin player should never trigger a progress lookup.
+	progressRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+	h := makeAdminHandler(progressRepo, taskResponseRepo, taskResultRepo, playerStateRepo, nil, sender)
+
+	game := testAdminGame()
+	nonAdmin := testNonAdminPlayer()
+	task := testAdminTask()
+
+	err := h.HandleButtonPress(context.Background(), game, nonAdmin, task, "city")
+	require.NoError(t, err)
+
+	assert.Len(t, sender.sent, 1)
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 1, sender.deleted)
+}
+
+func TestAdminHandleButtonPress_NotAnsweredYet_SendsAwaitingAnswer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	progressRepo := mocks.NewMockSubtaskProgressRepository(ctrl)
+	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
+	playerStateRepo := mocks.NewMockPlayerStateRepository(ctrl)
+	sender := &testSender{}
+
+	initialPD, _ := json.Marshal(map[string]interface{}{
+		"answers":  map[string]string{},
+		"q_msg_id": 100,
+	})
+	progress := &entity.SubtaskProgress{
+		GameID:        testGameID,
+		PlayerID:      testPlayerID,
+		TaskID:        "task_12",
+		QuestionIndex: 0,
+		AnswersData:   initialPD,
+	}
+
+	progressRepo.EXPECT().
+		Get(gomock.Any(), testGameID, testPlayerID, "task_12").
+		Return(progress, nil)
 
 	h := makeAdminHandler(progressRepo, taskResponseRepo, taskResultRepo, playerStateRepo, nil, sender)
 
@@ -226,6 +270,80 @@ func TestAdminHandleButtonPress_SendsAwaitingAnswer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sends awaiting_answer and schedules it for deletion.
+	assert.Len(t, sender.sent, 1)
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 1, sender.deleted)
+}
+
+func TestAdminHandleButtonPress_NoProgressYet_SendsAwaitingAnswer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	progressRepo := mocks.NewMockSubtaskProgressRepository(ctrl)
+	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
+	playerStateRepo := mocks.NewMockPlayerStateRepository(ctrl)
+	sender := &testSender{}
+
+	progressRepo.EXPECT().
+		Get(gomock.Any(), testGameID, testPlayerID, "task_12").
+		Return(nil, nil)
+
+	h := makeAdminHandler(progressRepo, taskResponseRepo, taskResultRepo, playerStateRepo, nil, sender)
+
+	game := testAdminGame()
+	player := testPlayer()
+	task := testAdminTask()
+
+	err := h.HandleButtonPress(context.Background(), game, player, task, "city")
+	require.NoError(t, err)
+
+	assert.Len(t, sender.sent, 1)
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 1, sender.deleted)
+}
+
+func TestAdminHandleButtonPress_AlreadyAnswered_SendsNotice(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	progressRepo := mocks.NewMockSubtaskProgressRepository(ctrl)
+	taskResponseRepo := mocks.NewMockTaskResponseRepository(ctrl)
+	taskResultRepo := mocks.NewMockTaskResultRepository(ctrl)
+	playerStateRepo := mocks.NewMockPlayerStateRepository(ctrl)
+	sender := &testSender{}
+
+	initialPD, _ := json.Marshal(map[string]interface{}{
+		"answers":  map[string]string{"city": "Київ"},
+		"q_msg_id": 100,
+	})
+	progress := &entity.SubtaskProgress{
+		GameID:        testGameID,
+		PlayerID:      testPlayerID,
+		TaskID:        "task_12",
+		QuestionIndex: 1,
+		AnswersData:   initialPD,
+	}
+
+	progressRepo.EXPECT().
+		Get(gomock.Any(), testGameID, testPlayerID, "task_12").
+		Return(progress, nil)
+
+	// Already-answered notice must not touch progress or player state.
+	progressRepo.EXPECT().Upsert(gomock.Any(), gomock.Any()).Times(0)
+	progressRepo.EXPECT().Delete(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	playerStateRepo.EXPECT().Upsert(gomock.Any(), gomock.Any()).Times(0)
+	playerStateRepo.EXPECT().SetIdle(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+	h := makeAdminHandler(progressRepo, taskResponseRepo, taskResultRepo, playerStateRepo, nil, sender)
+
+	game := testAdminGame()
+	player := testPlayer()
+	task := testAdminTask()
+
+	err := h.HandleButtonPress(context.Background(), game, player, task, "city")
+	require.NoError(t, err)
+
 	assert.Len(t, sender.sent, 1)
 	time.Sleep(5 * time.Millisecond)
 	assert.Equal(t, 1, sender.deleted)
@@ -278,9 +396,9 @@ func TestAdminHandleAnswer_IntermediateQuestion_SendsNext(t *testing.T) {
 	err := h.HandleAnswer(context.Background(), game, player, task, msg)
 	require.NoError(t, err)
 
-	// Question deleted synchronously; reply deleted async after delay.
+	// Question message stays in chat; only the reply auto-deletes.
 	time.Sleep(5 * time.Millisecond)
-	assert.Equal(t, 2, sender.deleted) // question + reply both deleted
+	assert.Equal(t, 1, sender.deleted) // reply deleted
 	assert.Len(t, sender.sent, 2)      // reply + next question
 }
 
@@ -356,8 +474,8 @@ func TestAdminHandleAnswer_LastQuestion_CallsOpenAIAndSavesResponse(t *testing.T
 	assert.Equal(t, "Київ", answers["city"])
 	assert.Equal(t, "The Beatles", answers["concert"])
 
-	// Only the question message is deleted (no reply sent for the last question).
+	// Question message stays in chat; no reply is sent for the last question.
 	time.Sleep(5 * time.Millisecond)
-	assert.Equal(t, 1, sender.deleted) // question deleted; no reply to delete
+	assert.Equal(t, 0, sender.deleted)
 	assert.GreaterOrEqual(t, len(sender.sent), 1)
 }

@@ -20,8 +20,8 @@ type Messages struct {
 
 	StartOnlyAdmin string `yaml:"start_only_admin"`
 
-	AwaitingAnswer []string `yaml:"awaiting_answer"`
-	AnswerAccepted string   `yaml:"answer_accepted"`
+	AwaitingAnswer  []string `yaml:"awaiting_answer"`
+	AnswerAccepted  string   `yaml:"answer_accepted"`
 	AlreadyAnswered []string `yaml:"already_answered"`
 
 	SkipWithRemaining2 string `yaml:"skip_with_remaining_2"`
@@ -36,9 +36,10 @@ type Messages struct {
 	NaAnswers []string `yaml:"na_answers"`
 	Reminder  []string `yaml:"reminder"`
 
-	Task12OnlyAdmin      string   `yaml:"task12_only_admin"`
-	Task12AwaitingAnswer []string `yaml:"task12_awaiting_answer"`
-	Task12Reply          []string `yaml:"task12_reply"`
+	Task12OnlyAdmin       string   `yaml:"task12_only_admin"`
+	Task12AwaitingAnswer  []string `yaml:"task12_awaiting_answer"`
+	Task12Reply           []string `yaml:"task12_reply"`
+	Task12AlreadyAnswered []string `yaml:"task12_already_answered"`
 
 	MemeVoiceoverAnnounce string   `yaml:"meme_voiceover_announce"`
 	MemeVoiceoverDone     []string `yaml:"meme_voiceover_done"`

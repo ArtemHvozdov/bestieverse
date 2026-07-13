@@ -524,17 +524,23 @@ Admin нажимает "Хочу відповісти"
     │   ├─ playerStateRepo.Upsert(awaiting_answer, "task_12:admin")
     │   └─ Отправить Questions[0].Text + Task12QuestionKeyboard
     │
-Admin нажимает кнопку (ButtonLabel)  ← callback "\ftask12:question"
-    │
+Кто угодно нажимает кнопку (ButtonLabel)  ← callback "\ftask12:question", payload = questionID
+    │  (кнопка видна всем в чате — сообщение-вопрос больше не удаляется)
     └─ HandleButtonPress
-        └─ Отправить task12_awaiting_answer (не удалять)
+        ├─ player.TelegramUserID != game.AdminUserID?
+        │     └─ да → отправить task12_only_admin (автоудаление через DeleteMessageDelay), return
+        ├─ Загрузить subtask_progress (только для админа)
+        ├─ questionID уже в answers?
+        │     ├─ да  → отправить task12_already_answered (автоудаление через DeleteMessageDelay)
+        │     └─ нет → отправить task12_awaiting_answer (автоудаление через DeleteMessageDelay)
+        └─ subtask_progress и player_states не изменяются в любом случае
     │
 Admin отправляет текст  ← message handler (суффикс ":admin")
     │
     └─ HandleAnswer
         ├─ Загрузить progress
         ├─ Сохранить answers[questionID] = msg.Text
-        ├─ Удалить сообщение-вопрос (сохранённый q_msg_id)
+        ├─ Сообщение-вопрос ОСТАЁТСЯ в чате (со своей клавиатурой) — не удаляется
         ├─ Оставить ответ в чате
         ├─ Отправить task12_reply
         │
@@ -542,6 +548,8 @@ Admin отправляет текст  ← message handler (суффикс ":adm
         │
         └─ Если все вопросы → completeAdminTask
 ```
+
+Так как сообщения-вопросы больше не удаляются, кнопка каждого из них остаётся активной. Повторное нажатие на кнопку уже отвеченного вопроса не должно менять состояние — `HandleButtonPress` различает этот случай проверкой `questionID` в `subtask_progress.answers_data` и отвечает вариативным `task12_already_answered` вместо `task12_awaiting_answer`, ничего не записывая в БД.
 
 ### Как ответы попадают в OpenAI prompt через Go-шаблон
 

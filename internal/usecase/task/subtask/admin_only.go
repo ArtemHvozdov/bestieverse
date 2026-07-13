@@ -148,16 +148,50 @@ func (h *AdminOnlyHandler) HandleRequestAnswer(
 	return nil
 }
 
-// HandleButtonPress is called when the admin clicks the question button (button_label).
-// Sends a temporary "write your answer" prompt that auto-deletes after DeleteMessageDelay.
+// HandleButtonPress is called when a player clicks a question button (button_label).
+// Non-admin players receive the same dismissal as HandleRequestAnswer, since the
+// question message (and its button) stays visible to the whole chat after being sent.
+// If the admin re-clicks an already-answered question, sends a dismissal notice instead
+// of the "write your answer" prompt, since the question message is no longer removed
+// from the chat after being answered.
 func (h *AdminOnlyHandler) HandleButtonPress(
-	_ context.Context,
+	ctx context.Context,
 	game *entity.Game,
-	_ *entity.Player,
-	_ *config.Task,
-	_ string,
+	player *entity.Player,
+	task *config.Task,
+	questionID string,
 ) error {
 	chat := &tele.Chat{ID: game.ChatID}
+
+	if player.TelegramUserID != game.AdminUserID {
+		mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
+		text, _ := formatter.RenderTemplate(h.msgs.Task12OnlyAdmin, struct{ Mention string }{mention})
+		msg, _ := h.sender.Send(chat, text, formatter.ParseMode)
+		if msg != nil {
+			deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
+		}
+		return nil
+	}
+
+	progress, err := h.subtaskProgressRepo.Get(ctx, game.ID, player.ID, task.ID)
+	if err != nil {
+		return fmt.Errorf("subtask.admin_only.HandleButtonPress: get progress: %w", err)
+	}
+
+	if progress != nil {
+		var pd adminProgressData
+		if err := json.Unmarshal(progress.AnswersData, &pd); err == nil {
+			if _, answered := pd.Answers[questionID]; answered {
+				text := config.Random(h.msgs.Task12AlreadyAnswered)
+				msg, _ := h.sender.Send(chat, text, formatter.ParseMode)
+				if msg != nil {
+					deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
+				}
+				return nil
+			}
+		}
+	}
+
 	text := config.Random(h.msgs.Task12AwaitingAnswer)
 	msg, _ := h.sender.Send(chat, text, formatter.ParseMode)
 	if msg != nil {
@@ -198,11 +232,6 @@ func (h *AdminOnlyHandler) HandleAnswer(
 
 	currentQ := task.Questions[progress.QuestionIndex]
 	pd.Answers[currentQ.ID] = msg.Text
-
-	// Delete the question message (admin-only content, not the answer)
-	if pd.QuestionMsgID != 0 {
-		h.sender.Delete(&tele.Message{ID: pd.QuestionMsgID, Chat: &tele.Chat{ID: game.ChatID}}) //nolint:errcheck
-	}
 
 	progress.QuestionIndex++
 
