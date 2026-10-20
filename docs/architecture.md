@@ -92,6 +92,7 @@ log.Info().Msg("game created")
 007_create_task_results.{up,down}.sql
 008_create_notifications_log.{up,down}.sql
 009_create_referral_clicks.{up,down}.sql
+010_add_poll_message_id.{up,down}.sql
 ```
 
 `make migrate-up` применяет все непримененные миграции.

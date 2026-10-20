@@ -30,9 +30,9 @@ func newLeaver(ctrl *gomock.Controller, sender *mockSender) (*game.Leaver, *mock
 }
 
 var (
-	leaveGame         = &entity.Game{ID: 1, ChatID: testChatID, AdminUserID: 999}
-	regularPlayer     = &entity.Player{ID: 2, TelegramUserID: 55, Username: "user", GameID: 1}
-	adminPlayerLeave  = &entity.Player{ID: 1, TelegramUserID: 999, Username: "admin", GameID: 1}
+	leaveGame        = &entity.Game{ID: 1, ChatID: testChatID, AdminUserID: 999}
+	regularPlayer    = &entity.Player{ID: 2, TelegramUserID: 55, Username: "user", GameID: 1}
+	adminPlayerLeave = &entity.Player{ID: 1, TelegramUserID: 999, Username: "admin", GameID: 1}
 )
 
 func TestInitiateLeave_NonAdmin_SendsConfirm(t *testing.T) {
@@ -43,6 +43,18 @@ func TestInitiateLeave_NonAdmin_SendsConfirm(t *testing.T) {
 	err := leaver.InitiateLeave(context.Background(), leaveGame, regularPlayer, &tele.ReplyMarkup{})
 	require.NoError(t, err)
 	assert.Len(t, sender.messages, 1)
+}
+
+func TestInitiateLeave_NonAdmin_ConfirmAutoDeletes(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	sender := &mockSender{}
+	leaver, _ := newLeaver(ctrl, sender)
+
+	err := leaver.InitiateLeave(context.Background(), leaveGame, regularPlayer, &tele.ReplyMarkup{})
+	require.NoError(t, err)
+
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 1, sender.deleted) // leave_confirm auto-deleted after DeleteMessageDelay
 }
 
 func TestInitiateLeave_Admin_SendsBlocked(t *testing.T) {
@@ -77,5 +89,5 @@ func TestCancelLeave_DeletesConfirmAndSendsCancel(t *testing.T) {
 	err := leaver.CancelLeave(context.Background(), leaveGame, regularPlayer, confirmMsg)
 	require.NoError(t, err)
 	assert.Equal(t, 1, sender.deleted) // confirm message deleted
-	assert.Len(t, sender.messages, 1) // cancel_leave sent
+	assert.Len(t, sender.messages, 1)  // cancel_leave sent
 }

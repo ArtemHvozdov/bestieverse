@@ -54,7 +54,10 @@ func (l *Leaver) InitiateLeave(ctx context.Context, game *entity.Game, player *e
 	}
 
 	text, _ := formatter.RenderTemplate(l.msgs.LeaveConfirm, struct{ Mention string }{Mention: mention})
-	l.sender.Send(chat, text, kb, formatter.ParseMode) //nolint:errcheck
+	msg, _ := l.sender.Send(chat, text, kb, formatter.ParseMode)
+	if msg != nil {
+		deleteAfter(l.sender, msg, l.timings.DeleteMessageDelay)
+	}
 	return nil
 }
 
