@@ -336,6 +336,8 @@ type TaskPublisher interface {
  task_response: skipped   (player state не меняется)
 ```
 
+Сообщения `skip_with_remaining_2`, `skip_with_remaining_1` и `skip_last` остаются в чате постоянно (автоудаление не применяется). Автоудаляются через `DeleteMessageDelay` только «ошибочные» ответы: `already_answered`, `already_skipped`, `skip_no_remaining`.
+
 ### Схема состояний игрока
 
 ```

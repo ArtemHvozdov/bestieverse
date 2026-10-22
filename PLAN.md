@@ -553,6 +553,7 @@ Recovery от паники: `log.Error().Stack().Err(err).Msg("panic recovered")
    - 1 пропуск (остаток 2): `skip_with_remaining_2`
    - 2 пропуска (остаток 1): `skip_with_remaining_1`
    - 3 пропуска (остаток 0): `skip_last`
+   - Эти сообщения постоянные — НЕ удаляются автоматически (в отличие от `already_*` и `skip_no_remaining`)
 
 ### 5.5 `internal/delivery/bot/handler/message.go`
 

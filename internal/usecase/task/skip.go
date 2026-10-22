@@ -102,10 +102,8 @@ func (s *Skipper) Skip(ctx context.Context, game *entity.Game, player *entity.Pl
 	}
 	text, _ := formatter.RenderTemplate(rawText, mentionData)
 
-	msg, _ := s.sender.Send(chat, text, formatter.ParseMode)
-	if msg != nil {
-		deleteAfter(s.sender, msg, s.timings.DeleteMessageDelay)
-	}
+	// Сообщение об остатке пропусков постоянное — не удаляется.
+	_, _ = s.sender.Send(chat, text, formatter.ParseMode)
 
 	s.log.Info().
 		Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).
