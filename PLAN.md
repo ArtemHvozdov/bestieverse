@@ -978,9 +978,9 @@ Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
 
 `Finalize(ctx, game, task, responses) error`:
 1. Собрать голоса: `map[questionID]map[telegramUserID]int`
-2. Для каждого вопроса: победитель = игрок с max голосами
-3. Сохранить в `task_results.ResultData`: `{"q1": telegramUserID, "q2": telegramUserID, ...}`
-4. Сформировать итоговый текст: для каждого вопроса — `вопрос → @упоминание победителя`
+2. Для каждого вопроса: победители = все игроки с max голосами (при ничьей — несколько)
+3. Сохранить в `task_results.ResultData`: `{"q1": [telegramUserID, ...], "q2": [telegramUserID, ...]}`
+4. Сформировать итоговый текст: для каждого вопроса — `вопрос → @упоминание1, @упоминание2` (все победители)
 5. Отправить `task.Summary.HeaderText` + итоговый текст
 
 ### 8.3 Обновление `callback.go`
@@ -1004,8 +1004,8 @@ Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
 
 **`usecase/task/finalize/who_is_who_test.go`**
 - Тест: 3 игрока выбрали одного и того же для q1 → он победитель
-- Тест: ничья → побеждает первый по order в YAML
-- Тест: `task_result` содержит корректный JSON с `telegramUserID` победителей
+- Тест: ничья → тегаются все лидеры, игроки без голосов не тегаются
+- Тест: `task_result` содержит корректный JSON со списками `telegramUserID` победителей
 - Тест: итоговое сообщение содержит `header_text` и упоминания победителей
 
 ### Обновление `docs/architecture.md`
