@@ -22,7 +22,6 @@ type CallbackHandler struct {
 	skipper              *task.Skipper
 	votingCollageHandler *subtask.VotingCollageHandler
 	whoIsWhoHandler      *subtask.WhoIsWhoHandler
-	memeVoiceoverHandler *subtask.MemeVoiceoverHandler
 	adminOnlyHandler     *subtask.AdminOnlyHandler
 	cfg                  *config.Config
 	log                  zerolog.Logger
@@ -36,7 +35,6 @@ func NewCallbackHandler(
 	skipper *task.Skipper,
 	votingCollageHandler *subtask.VotingCollageHandler,
 	whoIsWhoHandler *subtask.WhoIsWhoHandler,
-	memeVoiceoverHandler *subtask.MemeVoiceoverHandler,
 	adminOnlyHandler *subtask.AdminOnlyHandler,
 	cfg *config.Config,
 	log zerolog.Logger,
@@ -49,7 +47,6 @@ func NewCallbackHandler(
 		skipper:              skipper,
 		votingCollageHandler: votingCollageHandler,
 		whoIsWhoHandler:      whoIsWhoHandler,
-		memeVoiceoverHandler: memeVoiceoverHandler,
 		adminOnlyHandler:     adminOnlyHandler,
 		cfg:                  cfg,
 		log:                  log,
@@ -164,16 +161,4 @@ func (h *CallbackHandler) OnTask12Question(c tele.Context) error {
 		return nil
 	}
 	return h.adminOnlyHandler.HandleButtonPress(context.Background(), g, p, t, c.Data())
-}
-
-// OnTask10MemeRequest handles the "Хочу озвучити" button press for the meme_voiceover subtask.
-func (h *CallbackHandler) OnTask10MemeRequest(c tele.Context) error {
-	g := c.Get("game").(*entity.Game)
-	p := c.Get("player").(*entity.Player)
-	t := h.cfg.TaskByID("task_10")
-	if t == nil {
-		h.log.Warn().Msg("task10:meme_request callback but task_10 not found in config")
-		return nil
-	}
-	return h.memeVoiceoverHandler.HandleRequestAnswer(context.Background(), g, p, t)
 }

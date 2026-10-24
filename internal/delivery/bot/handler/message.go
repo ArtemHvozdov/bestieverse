@@ -15,14 +15,13 @@ import (
 
 // MessageHandler routes incoming group messages to the appropriate task handler.
 type MessageHandler struct {
-	gameRepo             repository.GameRepository
-	playerRepo           repository.PlayerRepository
-	playerStateRepo      repository.PlayerStateRepository
-	answerer             *task.Answerer
-	memeVoiceoverHandler *subtask.MemeVoiceoverHandler
-	adminOnlyHandler     *subtask.AdminOnlyHandler
-	cfg                  *config.Config
-	log                  zerolog.Logger
+	gameRepo         repository.GameRepository
+	playerRepo       repository.PlayerRepository
+	playerStateRepo  repository.PlayerStateRepository
+	answerer         *task.Answerer
+	adminOnlyHandler *subtask.AdminOnlyHandler
+	cfg              *config.Config
+	log              zerolog.Logger
 }
 
 func NewMessageHandler(
@@ -30,26 +29,23 @@ func NewMessageHandler(
 	playerRepo repository.PlayerRepository,
 	playerStateRepo repository.PlayerStateRepository,
 	answerer *task.Answerer,
-	memeVoiceoverHandler *subtask.MemeVoiceoverHandler,
 	adminOnlyHandler *subtask.AdminOnlyHandler,
 	cfg *config.Config,
 	log zerolog.Logger,
 ) *MessageHandler {
 	return &MessageHandler{
-		gameRepo:             gameRepo,
-		playerRepo:           playerRepo,
-		playerStateRepo:      playerStateRepo,
-		answerer:             answerer,
-		memeVoiceoverHandler: memeVoiceoverHandler,
-		adminOnlyHandler:     adminOnlyHandler,
-		cfg:                  cfg,
-		log:                  log,
+		gameRepo:         gameRepo,
+		playerRepo:       playerRepo,
+		playerStateRepo:  playerStateRepo,
+		answerer:         answerer,
+		adminOnlyHandler: adminOnlyHandler,
+		cfg:              cfg,
+		log:              log,
 	}
 }
 
 // OnMessage handles any incoming group message.
 // Ignores messages from chats without an active game, non-players, and players not awaiting an answer.
-// Routes messages with a ":meme" suffix in state.TaskID to the meme voiceover handler.
 func (h *MessageHandler) OnMessage(c tele.Context) error {
 	ctx := context.Background()
 
@@ -109,16 +105,6 @@ func (h *MessageHandler) OnMessage(c tele.Context) error {
 			}()).
 			Msg("OnMessage: player not awaiting answer, ignoring")
 		return nil
-	}
-
-	if strings.HasSuffix(state.TaskID, ":meme") {
-		baseTaskID := strings.TrimSuffix(state.TaskID, ":meme")
-		t := h.cfg.TaskByID(baseTaskID)
-		if t == nil {
-			h.log.Warn().Str("task_id", baseTaskID).Msg("meme_voiceover: task not found in config")
-			return nil
-		}
-		return h.memeVoiceoverHandler.HandleAnswer(ctx, game, player, t, c.Message())
 	}
 
 	if strings.HasSuffix(state.TaskID, ":admin") {

@@ -145,3 +145,26 @@ bot-1  | 2026-10-19 15:19:21 ERR dedup: cleanup failed error="mysql/update_dedup
 **Исправление:** Победители теперь собираются списком: при `n > maxVotes` список сбрасывается, при `n == maxVotes` игрок добавляется. Игроки без голосов пропускаются. В итоговом сообщении все победители вопроса тегаются через `, `. Порядок — как порядок игроков в игре. `task_results.ResultData` теперь хранит `{"q1": [uid, ...]}` вместо `{"q1": uid}` (читателей этого поля в коде нет). Остальная логика (подсчёт голосов, заголовок, сабтаска) не менялась.
 
 **Изменённые файлы:** `internal/usecase/task/finalize/who_is_who.go`, `internal/usecase/task/finalize/who_is_who_test.go` (тест ничьей заменён на `TestWhoIsWhoFinalizer_Tie_AllLeadersMentioned`), `PLAN.md`, `docs/bugs_1.md`.
+
+
+## Bug #5 [FIXED]
+**Симптомы:** Изучи всю информацию, которая касается задания 10. Нужно провести масштабное обновление этого задания. В этом задании есь три подзадания:
+1. Станцювати “Abracadabra” Леді Гаги
+2. 🙉 Заспівати шлягер Фібі Буфе “Smelly Cat”
+3. 🙊 Озвучити меми 🎤
+
+Нужно убрать подтаску с озвучкой мемов и всю логику, которая с ней связана. Остается только первые две подтаски Станцювати “Abracadabra” Леді Гаги и 🙉 Заспівати шлягер Фібі Буфе “Smelly Cat”. Из текста самого задания 10 в файле @content/tasks/task_10.yaml ничего не удаляй. Изображения мемов также не удаляй. Просто скажи, что с этими файлами нужно сделать.
+Фикс этого бага не должен затрагивать логику, которая не относится к заданию 10 и не должен ничего ломать.
+
+**Причина:** Задание 10 (`poll_then_task`) содержало третий вариант голосования `memes` (`result_type: meme_voiceover`) и всю цепочку под него: `MemeVoiceoverHandler`, кнопку/роут `task10_meme_request`, маршрутизацию сообщений по суффиксу `:meme`, ветку в `PollHandler.publishFollowUp`, тексты, поля конфига и тайминг `MEME_COLD_CACHE_DELAY`.
+
+**Исправление:**
+1. Удалены `internal/usecase/task/subtask/meme_voiceover.go` и `meme_voiceover_test.go`.
+2. `cmd/bot/main.go`: убраны создание `MemeVoiceoverHandler`, его передача в `CallbackHandler`/`MessageHandler` и роут `\ftask10_meme_request`.
+3. `handler/callback.go`: удалён `OnTask10MemeRequest`; `handler/message.go`: удалена ветка `:meme`; `keyboard/factory.go`: удалён `MemeVoiceoverKeyboard`.
+4. `subtask/poll.go`: убран `case "meme_voiceover"` (неизвестный `result_type` по-прежнему даёт ошибку). `task/request_answer.go`: guard теперь проверяет только `:admin`.
+5. Конфиг: удалены `MemeVoiceoverAnnounce/Done` (`messages.go` + `messages.yaml`), `PollOption.MemeFiles/MemesPerPlayer`, `Timings.MemeColdCacheDelay` и `MEME_COLD_CACHE_DELAY`/`TEST_MEME_COLD_CACHE_DELAY` (`.env.example`).
+6. `content/tasks/task_10.yaml`: текст задания и две оставшиеся опции не тронуты; опция `memes` **закомментирована** (не удалена), чтобы в опросе было ровно два варианта.
+7. Обновлены `CLAUDE.md`, `docs/architecture.md`, `PLAN.md`, `poll_test.go`. `go build`, `go vet`, `go test ./...` проходят.
+
+**Файлы мемов (`assets/media/task_10/meme_*.gif`, 20–25 шт.):** не удалены. Теперь не используются; можно удалить из репозитория и `assets/`, чтобы уменьшить Docker-образ (`COPY assets/`), либо оставить. Закомментированный блок `memes` в `task_10.yaml` можно удалить вместе с ними. Если бот уже запущен, в `.env` можно убрать `MEME_COLD_CACHE_DELAY` (лишние переменные игнорируются). Незавершённое состояние игрока с `task_id = "...:meme"` в старых БД теперь игнорируется.

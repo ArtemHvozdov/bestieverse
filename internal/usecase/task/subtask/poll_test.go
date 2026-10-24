@@ -23,7 +23,6 @@ func makePollConfig() *config.SubtaskPoll {
 		Options: []config.PollOption{
 			{ID: "dance", Label: "Танцювати", ResultType: "question_answer", PreparedText: "Завдання: танок"},
 			{ID: "sing", Label: "Співати", ResultType: "question_answer", PreparedText: "Завдання: спів"},
-			{ID: "memes", Label: "Мемаси", ResultType: "meme_voiceover"},
 		},
 	}
 }

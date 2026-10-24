@@ -1076,6 +1076,8 @@ Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
 
 ## Этап 10 — Сабтаска meme_voiceover (Таска 10b) ✅
 
+> ⚠️ **Удалено (Bug #5):** подтаска meme_voiceover и весь связанный код убраны. Раздел ниже сохранён только как история.
+
 **Цель:** последовательная озвучка мемов с эксклюзивным локом.
 
 ### 10.1 `internal/usecase/task/subtask/meme_voiceover.go`

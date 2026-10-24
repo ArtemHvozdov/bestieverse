@@ -98,11 +98,6 @@ func (h *PollHandler) publishFollowUp(_ context.Context, game *entity.Game, task
 		if _, err := h.sender.Send(chat, winner.PreparedText, formatter.ParseMode, kbd); err != nil {
 			return fmt.Errorf("subtask/poll.publishFollowUp: send: %w", err)
 		}
-	case "meme_voiceover":
-		kbd := keyboard.MemeVoiceoverKeyboard(task.ID)
-		if _, err := h.sender.Send(chat, h.cfg.Messages.MemeVoiceoverAnnounce, formatter.ParseMode, kbd); err != nil {
-			return fmt.Errorf("subtask/poll.publishFollowUp: send meme announce: %w", err)
-		}
 	default:
 		return fmt.Errorf("subtask/poll.publishFollowUp: unknown result_type %q for option %s", winner.ResultType, winner.ID)
 	}

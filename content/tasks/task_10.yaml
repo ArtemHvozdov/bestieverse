@@ -11,7 +11,7 @@ text: |
 
   📌 <b>Що робити?</b>
 
-  0️⃣ Нижче я надішлю три смішні завдання на вибір
+  0️⃣ Нижче я надішлю два смішні завдання на вибір
   1️⃣ Голосуєш за завдання, яке тобі найбільше до душі
   2️⃣ Чекаєш, поки проголосують інші
   3️⃣ Перемагає завдання, яке набрало найбільше лайків. Нічия? Перемагає те, за яке віддали перший голос.
@@ -74,36 +74,38 @@ pol:
 
         Я у вас вірю! Цьом 💋
 
-    - id: "memes"
-      label: "🙊 Озвучити меми 🎤"
-      result_type: meme_voiceover
-      memes_per_player: 5
-      meme_files:
-        - "task_10/meme_01.gif"
-        - "task_10/meme_02.gif"
-        - "task_10/meme_03.gif"
-        - "task_10/meme_04.gif"
-        - "task_10/meme_05.gif"
-        - "task_10/meme_06.gif"
-        - "task_10/meme_07.gif"
-        - "task_10/meme_08.gif"
-        - "task_10/meme_09.gif"
-        - "task_10/meme_10.gif"
-        - "task_10/meme_11.gif"
-        - "task_10/meme_12.gif"
-        - "task_10/meme_13.gif"
-        - "task_10/meme_14.gif"
-        - "task_10/meme_15.gif"
-        - "task_10/meme_16.gif"
-        - "task_10/meme_17.gif"
-        - "task_10/meme_18.gif"
-        - "task_10/meme_19.gif"
-        - "task_10/meme_20.gif"
-        - "task_10/meme_21.gif"
-        - "task_10/meme_22.gif"
-        - "task_10/meme_23.gif"
-        - "task_10/meme_24.gif"
-        - "task_10/meme_25.gif"  
+    # ОТКЛЮЧЕНО (Bug #5): подтаска «Озвучити меми» убрана из голосования. Блок сохранён для истории,
+    # логика озвучки в коде удалена; файлы task_10/meme_*.gif не используются.
+    #     - id: "memes"
+    #       label: "🙊 Озвучити меми 🎤"
+    #       result_type: meme_voiceover
+    #       memes_per_player: 5
+    #       meme_files:
+    #         - "task_10/meme_01.gif"
+    #         - "task_10/meme_02.gif"
+    #         - "task_10/meme_03.gif"
+    #         - "task_10/meme_04.gif"
+    #         - "task_10/meme_05.gif"
+    #         - "task_10/meme_06.gif"
+    #         - "task_10/meme_07.gif"
+    #         - "task_10/meme_08.gif"
+    #         - "task_10/meme_09.gif"
+    #         - "task_10/meme_10.gif"
+    #         - "task_10/meme_11.gif"
+    #         - "task_10/meme_12.gif"
+    #         - "task_10/meme_13.gif"
+    #         - "task_10/meme_14.gif"
+    #         - "task_10/meme_15.gif"
+    #         - "task_10/meme_16.gif"
+    #         - "task_10/meme_17.gif"
+    #         - "task_10/meme_18.gif"
+    #         - "task_10/meme_19.gif"
+    #         - "task_10/meme_20.gif"
+    #         - "task_10/meme_21.gif"
+    #         - "task_10/meme_22.gif"
+    #         - "task_10/meme_23.gif"
+    #         - "task_10/meme_24.gif"
+    #         - "task_10/meme_25.gif"  
 
 summary:
   type: text

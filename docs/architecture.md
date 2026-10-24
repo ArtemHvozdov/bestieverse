@@ -499,8 +499,11 @@ scheduler → task/publish (poll_then_task)
          ├─ SetActivePollID(game.ID, "") — очищаем
          │
          └─ publishFollowUp:
-              ├─ result_type="question_answer" → sends PreparedText + task keyboard
-              └─ result_type="meme_voiceover"  → stub (полная реализация в Stage 10)
+              └─ result_type="question_answer" → sends PreparedText + task keyboard
+
+В голосовании два варианта («Abracadabra» и «Smelly Cat»). Подтаска «Озвучити меми» (`meme_voiceover`)
+удалена (Bug #5): обработчик, клавиатура, роут `task10_meme_request` и суффикс `:meme` в `player_states.task_id`
+больше не существуют. Любой другой `result_type` в `publishFollowUp` возвращает ошибку.
 ```
 
 ### Хранение `active_poll_id`

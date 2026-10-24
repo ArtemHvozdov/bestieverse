@@ -40,9 +40,6 @@ type Messages struct {
 	Task12AwaitingAnswer  []string `yaml:"task12_awaiting_answer"`
 	Task12Reply           []string `yaml:"task12_reply"`
 	Task12AlreadyAnswered []string `yaml:"task12_already_answered"`
-
-	MemeVoiceoverAnnounce string   `yaml:"meme_voiceover_announce"`
-	MemeVoiceoverDone     []string `yaml:"meme_voiceover_done"`
 }
 
 // Random returns a uniformly random element from variants.

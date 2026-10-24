@@ -103,17 +103,6 @@ func main() {
 		&cfg.Timings,
 		log,
 	)
-	memeVoiceoverHandler := subtask.NewMemeVoiceoverHandler(
-		lockManager,
-		subtaskProgressRepo,
-		taskResponseRepo,
-		playerStateRepo,
-		mediaStorage,
-		bot,
-		&cfg.Messages,
-		&cfg.Timings,
-		log,
-	)
 	pollHandler := subtask.NewPollHandler(gameRepo, bot, cfg, log)
 	adminOnlyHandler := subtask.NewAdminOnlyHandler(
 		subtaskProgressRepo,
@@ -135,8 +124,8 @@ func main() {
 
 	// Handlers
 	chatMemberHandler := handler.NewChatMemberHandler(creator, bot, cfg, log)
-	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, whoIsWhoHandler, memeVoiceoverHandler, adminOnlyHandler, cfg, log)
-	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, memeVoiceoverHandler, adminOnlyHandler, cfg, log)
+	callbackHandler := handler.NewCallbackHandler(joiner, leaver, starter, requestAnswerer, skipper, votingCollageHandler, whoIsWhoHandler, adminOnlyHandler, cfg, log)
+	messageHandler := handler.NewMessageHandler(gameRepo, playerRepo, playerStateRepo, answerer, adminOnlyHandler, cfg, log)
 	pollAnswerHandler := handler.NewPollAnswerHandler(pollHandler, log)
 
 	// Middleware
@@ -159,7 +148,6 @@ func main() {
 	bot.Handle("\ftask_skip", callbackHandler.OnTaskSkip, pc)
 	bot.Handle("\ftask02_choice", callbackHandler.OnTask02Choice, pc)
 	bot.Handle("\ftask04_player", callbackHandler.OnTask04PlayerChoice, pc)
-	bot.Handle("\ftask10_meme_request", callbackHandler.OnTask10MemeRequest, pc)
 	bot.Handle("\ftask12_question", callbackHandler.OnTask12Question, pc)
 	bot.Handle(tele.OnPoll, pollAnswerHandler.OnPoll)
 	bot.Handle(tele.OnText, messageHandler.OnMessage)
