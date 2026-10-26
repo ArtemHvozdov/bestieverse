@@ -132,42 +132,94 @@ func TestSendReminders_AlreadyNotified_NoRepeat(t *testing.T) {
 	}
 }
 
-func TestSendReminders_AdminOnlyTask_NoReminder(t *testing.T) {
+type textSender struct {
+	texts []string
+}
+
+func (m *textSender) Send(_ tele.Recipient, what interface{}, _ ...interface{}) (*tele.Message, error) {
+	m.texts = append(m.texts, what.(string))
+	return &tele.Message{ID: len(m.texts)}, nil
+}
+
+func adminOnlyFixture() (*entity.Game, *config.Config) {
+	published := time.Now().Add(-2 * time.Hour)
+	game := &entity.Game{
+		ID:                     1,
+		ChatID:                 100,
+		AdminUserID:            111,
+		Status:                 entity.GameActive,
+		CurrentTaskOrder:       12,
+		CurrentTaskPublishedAt: &published,
+	}
+	cfg := &config.Config{
+		Tasks: []config.Task{
+			{ID: "task_12", Order: 12, Type: "admin_only"},
+		},
+		Messages: config.Messages{
+			Reminder:       []string{"Hey {{.Mention}}!"},
+			Task12Reminder: "{{.Mention}} Pssst, are you there?",
+		},
+		Timings: config.Timings{ReminderDelay: time.Hour},
+	}
+	return game, cfg
+}
+
+func TestSendReminders_AdminOnlyTask_RemindsOnlyAdmin(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	gameRepo := mocks.NewMockGameRepository(ctrl)
 	notifRepo := mocks.NewMockNotificationRepository(ctrl)
-	sender := &mockSender{}
-	log := zerolog.Nop()
+	sender := &textSender{}
 
-	published := time.Now().Add(-2 * time.Hour)
-	game := &entity.Game{
-		ID:                     1,
-		ChatID:                 100,
-		Status:                 entity.GameActive,
-		CurrentTaskOrder:       12,
-		CurrentTaskPublishedAt: &published,
-	}
-
-	adminOnlyCfg := &config.Config{
-		Tasks: []config.Task{
-			{ID: "task_12", Order: 12, Type: "admin_only"},
-		},
-		Messages: config.Messages{Reminder: []string{"Hey {{.Mention}}!"}},
-		Timings:  config.Timings{ReminderDelay: time.Hour},
-	}
+	game, cfg := adminOnlyFixture()
+	admin := &entity.Player{ID: 10, GameID: 1, TelegramUserID: 111, Username: "admin_user"}
+	other := &entity.Player{ID: 11, GameID: 1, TelegramUserID: 222, Username: "bob"}
 
 	gameRepo.EXPECT().GetAllActive(gomock.Any()).Return([]*entity.Game{game}, nil)
-	// GetUnnotifiedPlayers must NOT be called for admin_only tasks.
+	notifRepo.EXPECT().GetUnnotifiedPlayers(gomock.Any(), game.ID, "task_12").Return([]*entity.Player{other, admin}, nil)
+	// Notification log is written for the admin only.
+	notifRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, n *entity.NotificationLog) error {
+			if n.PlayerID != admin.ID || n.TaskID != "task_12" {
+				t.Errorf("unexpected notification log: %+v", n)
+			}
+			return nil
+		})
 
-	rs := notification.NewReminderSender(gameRepo, notifRepo, sender, adminOnlyCfg, log)
-	err := rs.SendReminders(context.Background())
-	if err != nil {
+	rs := notification.NewReminderSender(gameRepo, notifRepo, sender, cfg, zerolog.Nop())
+	if err := rs.SendReminders(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sender.sent != 0 {
-		t.Errorf("expected 0 reminders for admin_only task, got %d", sender.sent)
+	if len(sender.texts) != 1 {
+		t.Fatalf("expected 1 reminder, got %d", len(sender.texts))
+	}
+	if want := "@admin_user Pssst, are you there?"; sender.texts[0] != want {
+		t.Errorf("text = %q, want %q", sender.texts[0], want)
+	}
+}
+
+func TestSendReminders_AdminOnlyTask_AdminAlreadyAnsweredOrNotified_NoReminder(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	gameRepo := mocks.NewMockGameRepository(ctrl)
+	notifRepo := mocks.NewMockNotificationRepository(ctrl)
+	sender := &textSender{}
+
+	game, cfg := adminOnlyFixture()
+	other := &entity.Player{ID: 11, GameID: 1, TelegramUserID: 222, Username: "bob"}
+
+	// Admin is absent from the unnotified list (already answered / notified).
+	gameRepo.EXPECT().GetAllActive(gomock.Any()).Return([]*entity.Game{game}, nil)
+	notifRepo.EXPECT().GetUnnotifiedPlayers(gomock.Any(), game.ID, "task_12").Return([]*entity.Player{other}, nil)
+
+	rs := notification.NewReminderSender(gameRepo, notifRepo, sender, cfg, zerolog.Nop())
+	if err := rs.SendReminders(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sender.texts) != 0 {
+		t.Errorf("expected 0 reminders, got %d", len(sender.texts))
 	}
 }
 

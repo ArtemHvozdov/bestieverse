@@ -72,20 +72,26 @@ func (rs *ReminderSender) remindGame(ctx context.Context, game *entity.Game) err
 		return nil
 	}
 
-	if task.Type == "admin_only" {
-		return nil
-	}
-
 	players, err := rs.notificationRepo.GetUnnotifiedPlayers(ctx, game.ID, task.ID)
 	if err != nil {
 		return fmt.Errorf("notification.SendReminders: get unnotified players: %w", err)
 	}
 
+	// Only the game admin answers an admin_only task, so only they get a reminder.
+	adminOnly := task.Type == "admin_only"
+
 	chat := &tele.Chat{ID: game.ChatID}
 
 	for _, player := range players {
+		if adminOnly && player.TelegramUserID != game.AdminUserID {
+			continue
+		}
+
 		mention := formatter.Mention(player.TelegramUserID, player.Username, player.FirstName)
 		tmpl := config.Random(rs.cfg.Messages.Reminder)
+		if adminOnly {
+			tmpl = rs.cfg.Messages.Task12Reminder
+		}
 		text, err := formatter.RenderTemplate(tmpl, struct{ Mention string }{Mention: mention})
 		if err != nil {
 			text = tmpl

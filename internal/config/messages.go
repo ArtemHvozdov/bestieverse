@@ -37,6 +37,7 @@ type Messages struct {
 	Reminder  []string `yaml:"reminder"`
 
 	Task12OnlyAdmin       string   `yaml:"task12_only_admin"`
+	Task12Reminder        string   `yaml:"task12_reminder"`
 	Task12AwaitingAnswer  []string `yaml:"task12_awaiting_answer"`
 	Task12Reply           []string `yaml:"task12_reply"`
 	Task12AlreadyAnswered []string `yaml:"task12_already_answered"`
