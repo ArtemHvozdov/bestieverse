@@ -8,11 +8,13 @@ import (
 
 type mockSender struct {
 	sent    []interface{}
+	opts    [][]interface{}
 	deleted int
 }
 
-func (m *mockSender) Send(_ tele.Recipient, what interface{}, _ ...interface{}) (*tele.Message, error) {
+func (m *mockSender) Send(_ tele.Recipient, what interface{}, opts ...interface{}) (*tele.Message, error) {
 	m.sent = append(m.sent, what)
+	m.opts = append(m.opts, opts)
 	return &tele.Message{ID: len(m.sent)}, nil
 }
 

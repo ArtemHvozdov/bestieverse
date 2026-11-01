@@ -168,3 +168,51 @@ bot-1  | 2026-10-19 15:19:21 ERR dedup: cleanup failed error="mysql/update_dedup
 7. Обновлены `CLAUDE.md`, `docs/architecture.md`, `PLAN.md`, `poll_test.go`. `go build`, `go vet`, `go test ./...` проходят.
 
 **Файлы мемов (`assets/media/task_10/meme_*.gif`, 20–25 шт.):** не удалены. Теперь не используются; можно удалить из репозитория и `assets/`, чтобы уменьшить Docker-образ (`COPY assets/`), либо оставить. Закомментированный блок `memes` в `task_10.yaml` можно удалить вместе с ними. Если бот уже запущен, в `.env` можно убрать `MEME_COLD_CACHE_DELAY` (лишние переменные игнорируются). Незавершённое состояние игрока с `task_id = "...:meme"` в старых БД теперь игнорируется.
+
+
+## Bug #6 [FIXED]
+**Симптомы:** В задании 12, где должен давать ответ только админ игры и никто кроме него, нет сообщения напоминания от бота через определенное время (значение времени для тестового режима и режима продакшин задаано через переменные окружения) как для всех остальных заданий и для остальных участников игры. Это нужно реализовать.
+
+Сообщение для админа должно быть таким:
+
+"@Адмін Пссс, ти тут?
+
+У вас залишилося 12 години для виконання останнього завдання. Не барися! ⏳"
+
+Вместо Адмін должен буть указан юзернейм админа в телеграме. То есть бот должен тегнуть админа в этом сообщении.
+
+Текст этого сообщения я добавил в файл @content/messages.yaml по ключу task12_reminder. Проверь в правильно ли формате указал текст сообщения.
+
+**Причина:** В `ReminderSender.remindGame` (`internal/usecase/notification/send_reminder.go`) для тасок типа `admin_only` стоял ранний `return nil` (результат Bug #19 в `docs/bugs.md`: обычным игрокам напоминания для таски 12 слать не нужно). Из-за этого админ, который единственный должен отвечать на таску 12, тоже не получал напоминания. Дополнительно в `messages.yaml` ключ `task12_reminder` не содержал слова «Пссс», а сам ключ не был привязан к структуре `config.Messages`.
+
+**Проверка формата `task12_reminder`:** `{{.Mention}}` рендерится в `@username` (plain text, см. Bug #3 в `docs/bugs.md`), так что бот тегает админа. Теги HTML не нужны. Исправлено: добавлено «Пссс,» в начало (в соответствии с желаемым текстом: `@Адмін Пссс, ти тут?`), блок `|` заменён на `|-`, чтобы в конце сообщения не было лишнего перевода строки.
+
+**Исправление:**
+1. `internal/config/messages.go`: добавлено поле `Task12Reminder string` (`yaml:"task12_reminder"`).
+2. `content/messages.yaml`: `task12_reminder: |-` + `{{.Mention}} Пссс, ти тут?` + пустая строка + `У вас залишилося 12 години для виконання останнього завдання. Не барися! ⏳`.
+3. `send_reminder.go`: ранний выход для `admin_only` убран. `GetUnnotifiedPlayers` по-прежнему исключает ответивших и уже уведомлённых; для `admin_only` из списка берётся только игрок с `TelegramUserID == game.AdminUserID`, ему отправляется `Task12Reminder` вместо случайного `Reminder`. Задержка — общая `ReminderDelay` (`REMINDER_DELAY` / `TEST_REMINDER_DELAY`), как для остальных тасок; повтор невозможен благодаря `notifications_log`.
+4. Тесты: `TestSendReminders_AdminOnlyTask_NoReminder` заменён на `TestSendReminders_AdminOnlyTask_RemindsOnlyAdmin` (проверяет текст с `@admin_user`, что остальные игроки не получают сообщения и лог пишется только для админа) и `TestSendReminders_AdminOnlyTask_AdminAlreadyAnsweredOrNotified_NoReminder`.
+
+**Изменённые файлы:** `internal/usecase/notification/send_reminder.go`, `send_reminder_test.go`, `internal/config/messages.go`, `content/messages.yaml`, `docs/architecture.md`, `docs/bugs_1.md`.
+
+
+## Bug #7 [FIXED]
+**Симптомы:** В задании 4, когда все юзеры проходят опрос, после того как юзер ответил на все вопросы бот отправляет сообщение о том, что нужно ждать пока все подруги поделяться своими ответами. Это сообщение находиться в файле @content/task_04.yaml по ключу followup. Сейчас это сообщение не удаляется. Исправь чтобы это сообщение удалялось через некоторое время. Значение времени возьми из логики удаления сообщений от бота о том, что ответ на задание от юзера принят. 
+Этот фикс не должен ломать и затрагивать логику, которая не относятся к текущему фиксу.
+
+**Причина:** В `WhoIsWhoHandler.HandlePlayerChoice` (`internal/usecase/task/subtask/who_is_who.go`) после последнего ответа сообщение `followup` из `task_04.yaml` отправлялось через `h.sender.Send(...)` без сохранения возвращённого `*tele.Message`, поэтому запланировать его удаление было невозможно.
+
+**Исправление:** Возвращённое сообщение теперь сохраняется, и если оно не `nil`, вызывается `deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)`. Это то же значение, что используется для удаления сообщения «ответ принят» в `answer.go` (`DELETE_MESSAGE_DELAY`, 10 секунд в prod). Остальная логика сабтаски (лок, прогресс, ответ, idle-состояние) не менялась.
+
+**Изменённые файлы:** `internal/usecase/task/subtask/who_is_who.go`, `who_is_who_test.go` (тест проверяет, что follow-up удаляется), `voting_collage_test.go` (в `testSender` добавлен мьютекс для безопасного подсчёта удалений из горутины), `docs/bugs_1.md`.
+
+
+## Bug #8 [FIXED]
+**Симптомы:** В конце игры бот отправляет несколько финальных сообщений. В последнем сообщение, текст, которого находиться в файла @content/tasks/game.yaml по ключу final_message_2, есть ссылка на гугл докс опрос. Вот ссылка - https://docs.google.com/forms/d/e/1FAIpQLScLLhQKB1_qAkizqQ2CdBVoE536_TqVj-jCec8qcwvTXVKsJg/viewform?usp=header. 
+Нужно к этому сообщению добавить инлайн-кнопку с текстом "Поділитися враженнями" и эта кнопка должна переходить по этой ссылке.
+
+**Причина:** `FinalizeRouter.finishGame` (`internal/usecase/task/finalize/game_end.go`) отправлял `final_message_2` только с текстом, без `ReplyMarkup`; ссылка на опрос была лишь HTML-ссылкой внутри текста.
+
+**Исправление:** Текст кнопки и URL вынесены в `content/game.yml` (`final_message_2_button_text`: «Поділитися враженнями», `final_message_2_button_url`: ссылка на форму) — по правилу «тексты только в YAML». В `config.GameMessages` добавлены поля `FinalMessage2ButtonText` / `FinalMessage2ButtonURL`. В `finishGame` для `final_message_2` собирается inline-клавиатура с одной URL-кнопкой (`kb.URL`); если текст или URL пустые — сообщение отправляется как раньше, без кнопки. Текст сообщения и остальная логика финала не менялись.
+
+**Изменённые файлы:** `internal/config/task.go`, `internal/usecase/task/finalize/game_end.go`, `content/game.yml`, `internal/usecase/task/finalize/router_test.go` (в `TestRouter_LastTask_CallsSetFinished` добавлена проверка кнопки), `helpers_test.go` (mockSender запоминает opts), `docs/architecture.md`, `docs/bugs_1.md`.

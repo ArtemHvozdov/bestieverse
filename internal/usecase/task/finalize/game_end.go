@@ -29,7 +29,13 @@ func (r *FinalizeRouter) finishGame(ctx context.Context, game *entity.Game) erro
 
 	time.Sleep(r.cfg.Timings.TaskInfoInterval)
 
-	r.sender.Send(chat, r.cfg.Game.FinalMessage2, formatter.ParseMode) //nolint:errcheck
+	if r.cfg.Game.FinalMessage2ButtonText != "" && r.cfg.Game.FinalMessage2ButtonURL != "" {
+		kb := &tele.ReplyMarkup{}
+		kb.Inline(kb.Row(kb.URL(r.cfg.Game.FinalMessage2ButtonText, r.cfg.Game.FinalMessage2ButtonURL)))
+		r.sender.Send(chat, r.cfg.Game.FinalMessage2, formatter.ParseMode, kb) //nolint:errcheck
+	} else {
+		r.sender.Send(chat, r.cfg.Game.FinalMessage2, formatter.ParseMode) //nolint:errcheck
+	}
 
 	r.log.Info().Str("chat", logger.ChatValue(game.ChatID, game.ChatName)).Uint64("game", game.ID).Msg("game finished")
 
