@@ -445,7 +445,7 @@ type TaskFinalizer interface {
 1. `gameRepo.SetFinished(game.ID)`
 2. Отправить `game.final_message_1` (GIF `game/final.gif`)
 3. `time.Sleep(TaskInfoInterval)`
-4. Отправить `game.final_message_2` с inline URL-кнопкой (текст и ссылка — `final_message_2_button_text` / `final_message_2_button_url` в `content/game.yml`; если любое из полей пусто, сообщение уходит без кнопки)
+4. Отправить `game.final_message_2` с inline URL-кнопкой (текст и ссылка — `final_message_2_button_text` / `final_message_2_button_url` в `content/game.yml`; если любое из полей пусто, сообщение уходит без кнопки). Сообщение отправляется с `tele.NoPreview` — превью ссылки на опрос отключено (Bug #9), только для этого сообщения
 
 ### Scheduler (обновлён в Stage 6)
 

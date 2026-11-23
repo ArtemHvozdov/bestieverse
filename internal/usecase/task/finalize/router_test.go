@@ -260,10 +260,17 @@ func TestRouter_LastTask_CallsSetFinished(t *testing.T) {
 		t.Fatalf("last message = %v, want Final 2", sender.sent[last])
 	}
 	var kb *tele.ReplyMarkup
+	noPreview := false
 	for _, o := range sender.opts[last] {
 		if m, ok := o.(*tele.ReplyMarkup); ok {
 			kb = m
 		}
+		if opt, ok := o.(tele.Option); ok && opt == tele.NoPreview {
+			noPreview = true
+		}
+	}
+	if !noPreview {
+		t.Error("final_message_2 must be sent with tele.NoPreview (link preview disabled)")
 	}
 	if kb == nil || len(kb.InlineKeyboard) != 1 || len(kb.InlineKeyboard[0]) != 1 {
 		t.Fatalf("final_message_2 must have one inline button, got %+v", kb)

@@ -5,6 +5,7 @@ export
 MIGRATE        := migrate
 MIGRATE_DSN    := mysql://$(DB_USER):$(DB_PASSWORD)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)
 MOCKGEN        := mockgen
+
 GOLANGCI_LINT  := golangci-lint
 
 # ─── Run locally ──────────────────────────────────────────────────────────────
@@ -69,6 +70,10 @@ docker-restart:
 	docker compose build
 	docker compose up -d
 	docker compose logs -f bot
+
+.PHONY: notifier-logs
+notifier-logs:
+	docker compose logs -f notifier
 
 # ─── Migrations ───────────────────────────────────────────────────────────────
 .PHONY: migrate-up

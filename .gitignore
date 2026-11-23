@@ -1,6 +1,11 @@
 .env
 .claude
 data
-assets
-
 reference
+./DS_Store
+docs/*
+PLAN.md
+CLAUDE.md
+
+# Allowing specific files
+!/docs/architecture.md
