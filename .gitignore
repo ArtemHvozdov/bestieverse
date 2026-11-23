@@ -2,7 +2,7 @@
 .claude
 data
 reference
-./DS_Store
+.DS_Store
 docs/*
 PLAN.md
 CLAUDE.md
