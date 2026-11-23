@@ -234,7 +234,9 @@ func (h *WhoIsWhoHandler) HandlePlayerChoice(
 		if renderErr != nil {
 			text = followup
 		}
-		h.sender.Send(chat, text, formatter.ParseMode) //nolint:errcheck
+		if msg, _ := h.sender.Send(chat, text, formatter.ParseMode); msg != nil {
+			deleteAfter(h.sender, msg, h.timings.DeleteMessageDelay)
+		}
 	}
 
 	h.log.Info().

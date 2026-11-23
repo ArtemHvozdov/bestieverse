@@ -10,7 +10,7 @@ start_game_message_1: |
 start_game_message_2: |
   📅 Попереду – <b>два найтепліші тижні</b>, які ви проживете разом.
 
-  ⏰<b>Щодня</b> я надсилатиму <b>нове завдання</b>. На його виконання є 24 години.
+  ⏰<b>Щодня</b> я надсилатиму <b>нове завдання</b>. На його виконання є 23 години.
 
   💋Але без жодного тиску. Раптом відчуєш, що хочеш <b>скіпнути завдання</b> – під кожним є спеціальна чарівна кнопка <b>“Пропустити”</b>.
 
@@ -45,3 +45,6 @@ final_message_2: |
   <b>Bestieverse TEAM</b> 🩷💛💙💜
 
   P.S. А тепер іди жити це життя і робити дурниці далі, Зіронько! 🌟
+
+final_message_2_button_text: "Поділитися враженнями"
+final_message_2_button_url: "https://docs.google.com/forms/d/e/1FAIpQLScLLhQKB1_qAkizqQ2CdBVoE536_TqVj-jCec8qcwvTXVKsJg/viewform?usp=header"

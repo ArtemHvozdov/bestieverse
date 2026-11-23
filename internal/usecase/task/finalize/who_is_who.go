@@ -66,37 +66,47 @@ func (f *WhoIsWhoFinalizer) Finalize(
 		}
 	}
 
-	// Find winner per question, respecting player insertion order for tie-breaking.
-	results := make(map[string]int64, len(task.Questions))
+	// Find winners per question: every player sharing the max vote count wins.
+	// Winners keep player insertion order.
+	results := make(map[string][]int64, len(task.Questions))
 	for _, q := range task.Questions {
 		maxVotes := 0
-		var winner *entity.Player
+		var winners []int64
 		for _, p := range allPlayers {
-			if votes[q.ID][p.TelegramUserID] > maxVotes {
-				maxVotes = votes[q.ID][p.TelegramUserID]
-				winner = p
+			n := votes[q.ID][p.TelegramUserID]
+			if n == 0 {
+				continue
+			}
+			if n > maxVotes {
+				maxVotes = n
+				winners = winners[:0]
+			}
+			if n == maxVotes {
+				winners = append(winners, p.TelegramUserID)
 			}
 		}
-		if winner != nil {
-			results[q.ID] = winner.TelegramUserID
+		if len(winners) > 0 {
+			results[q.ID] = winners
 		}
 	}
 
 	chat := &tele.Chat{ID: game.ChatID}
 
-	// Build result lines: "question text @mention of winner", separated by blank lines.
+	// Build result lines: "question text @mention1, @mention2", separated by blank lines.
 	var lines []string
 	for _, q := range task.Questions {
-		uid, ok := results[q.ID]
-		if !ok {
+		var mentions []string
+		for _, uid := range results[q.ID] {
+			p := playerByUID[uid]
+			if p == nil {
+				continue
+			}
+			mentions = append(mentions, formatter.Mention(p.TelegramUserID, p.Username, p.FirstName))
+		}
+		if len(mentions) == 0 {
 			continue
 		}
-		p := playerByUID[uid]
-		if p == nil {
-			continue
-		}
-		mention := formatter.Mention(p.TelegramUserID, p.Username, p.FirstName)
-		lines = append(lines, q.Text+" "+mention)
+		lines = append(lines, q.Text+" "+strings.Join(mentions, ", "))
 	}
 
 	// Combine header and results into a single message separated by a blank line.

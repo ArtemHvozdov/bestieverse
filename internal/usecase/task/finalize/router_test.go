@@ -1,6 +1,7 @@
 package finalize_test
 
 import (
+	tele "gopkg.in/telebot.v3"
 	"context"
 	"errors"
 	"testing"
@@ -44,6 +45,9 @@ func makeRouter(
 		Game: config.GameMessages{
 			FinalMessage1: "Final 1",
 			FinalMessage2: "Final 2",
+
+			FinalMessage2ButtonText: "Share",
+			FinalMessage2ButtonURL:  "https://example.com/form",
 		},
 		Timings: config.Timings{TaskInfoInterval: time.Millisecond},
 	}
@@ -248,6 +252,32 @@ func TestRouter_LastTask_CallsSetFinished(t *testing.T) {
 	err := router.Finalize(context.Background(), game, task)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The last message (final_message_2) must carry the URL inline button.
+	last := len(sender.sent) - 1
+	if sender.sent[last] != "Final 2" {
+		t.Fatalf("last message = %v, want Final 2", sender.sent[last])
+	}
+	var kb *tele.ReplyMarkup
+	noPreview := false
+	for _, o := range sender.opts[last] {
+		if m, ok := o.(*tele.ReplyMarkup); ok {
+			kb = m
+		}
+		if opt, ok := o.(tele.Option); ok && opt == tele.NoPreview {
+			noPreview = true
+		}
+	}
+	if !noPreview {
+		t.Error("final_message_2 must be sent with tele.NoPreview (link preview disabled)")
+	}
+	if kb == nil || len(kb.InlineKeyboard) != 1 || len(kb.InlineKeyboard[0]) != 1 {
+		t.Fatalf("final_message_2 must have one inline button, got %+v", kb)
+	}
+	btn := kb.InlineKeyboard[0][0]
+	if btn.Text != "Share" || btn.URL != "https://example.com/form" {
+		t.Errorf("unexpected button: %+v", btn)
 	}
 }
 

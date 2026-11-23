@@ -20,7 +20,7 @@ services:
   migrate:
     image: migrate/migrate
     volumes:
-      - ./migrations:/migrations  # монтируем папку с миграциями
+      - ./migrations:/migrations  # mount the migrations folder
     command:
       - "-path=/migrations"
       - "-database=mysql://${DB_USER}:${DB_PASSWORD}@tcp(mysql:3306)/${DB_NAME}"

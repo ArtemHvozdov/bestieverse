@@ -3,6 +3,7 @@ package task_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/entity"
 	"github.com/ArtemHvozdov/bestieverse.git/internal/domain/repository/mocks"
@@ -117,4 +118,23 @@ func TestSkip_AlreadyAnswered_SendsAlreadyAnswered(t *testing.T) {
 	err := s.Skip(ctx, testGame, testPlayer, testTaskID)
 	require.NoError(t, err)
 	assert.Len(t, sender.sent, 1) // already_answered
+}
+
+func TestSkip_RemainingMessages_NotAutoDeleted(t *testing.T) {
+	for skips := 0; skips < 3; skips++ {
+		ctrl := gomock.NewController(t)
+		sender := &mockSender{}
+		s, trRepo, playerRepo := newSkipper(ctrl, sender)
+		ctx := context.Background()
+
+		trRepo.EXPECT().GetByPlayerAndTask(ctx, testGameID, testPlayerID, testTaskID).Return(nil, nil)
+		playerRepo.EXPECT().IncrementSkipCount(ctx, testPlayerID).Return(nil)
+		trRepo.EXPECT().Create(ctx, gomock.Any()).Return(nil)
+
+		require.NoError(t, s.Skip(ctx, testGame, playerWithSkips(skips), testTaskID))
+		require.Len(t, sender.sent, 1)
+
+		time.Sleep(20 * time.Millisecond) // > DeleteMessageDelay из testTimings
+		assert.Equal(t, 0, sender.deleted, "skip %d: сообщение не должно удаляться", skips+1)
+	}
 }

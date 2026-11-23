@@ -98,7 +98,7 @@ func TestWhoIsWhoFinalizer_CountsVotesAndSendsResults(t *testing.T) {
 	}
 }
 
-func TestWhoIsWhoFinalizer_TieBreaking_FirstPlayerWins(t *testing.T) {
+func TestWhoIsWhoFinalizer_Tie_AllLeadersMentioned(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -110,31 +110,43 @@ func TestWhoIsWhoFinalizer_TieBreaking_FirstPlayerWins(t *testing.T) {
 	task := whoIsWhoTask()
 	players := whoIsWhoPlayers() // alice, bob, carol
 
-	// 1 vote for alice, 1 vote for bob on q1 — tie; alice is first in player list.
+	// q1: 1 vote for bob, 1 vote for carol — tie; q2: single leader carol.
 	responses := []*entity.TaskResponse{
-		{ID: 1, GameID: 1, PlayerID: 10, ResponseData: marshalAnswers(map[string]int64{"q1": 111, "q2": 333})},
-		{ID: 2, GameID: 1, PlayerID: 20, ResponseData: marshalAnswers(map[string]int64{"q1": 222, "q2": 333})},
+		{ID: 1, GameID: 1, PlayerID: 10, ResponseData: marshalAnswers(map[string]int64{"q1": 222, "q2": 333})},
+		{ID: 2, GameID: 1, PlayerID: 20, ResponseData: marshalAnswers(map[string]int64{"q1": 333, "q2": 333})},
 	}
 
 	playerRepo.EXPECT().GetAllByGame(gomock.Any(), game.ID).Return(players, nil)
-	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+	taskResultRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ interface{}, result *entity.TaskResult) error {
+			var got map[string][]int64
+			if err := json.Unmarshal(result.ResultData, &got); err != nil {
+				t.Fatalf("bad result json: %v", err)
+			}
+			if len(got["q1"]) != 2 || got["q1"][0] != 222 || got["q1"][1] != 333 {
+				t.Errorf("q1 winners should be [222 333], got %v", got["q1"])
+			}
+			if len(got["q2"]) != 1 || got["q2"][0] != 333 {
+				t.Errorf("q2 winners should be [333], got %v", got["q2"])
+			}
+			return nil
+		},
+	)
 
 	f := finalize.NewWhoIsWhoFinalizer(playerRepo, taskResultRepo, sender)
-	err := f.Finalize(context.Background(), game, task, responses)
-	if err != nil {
+	if err := f.Finalize(context.Background(), game, task, responses); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(sender.sent) != 1 {
 		t.Fatalf("expected 1 combined message, got %d", len(sender.sent))
 	}
-	resultsMsg, ok := sender.sent[0].(string)
-	if !ok {
-		t.Fatal("message should be a string")
+	msg, _ := sender.sent[0].(string)
+	if !strings.Contains(msg, "@bob") || !strings.Contains(msg, "@carol") {
+		t.Errorf("tie: both @bob and @carol should be mentioned, got %q", msg)
 	}
-	// In a tie, alice wins because she appears first in the player list.
-	if !strings.Contains(resultsMsg, "@alice") {
-		t.Errorf("tie-breaking: alice (first player) should win, got %q", resultsMsg)
+	if strings.Contains(msg, "@alice") {
+		t.Errorf("alice has no votes and must not be mentioned, got %q", msg)
 	}
 }
 

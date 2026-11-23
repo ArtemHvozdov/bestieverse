@@ -553,6 +553,7 @@ Recovery от паники: `log.Error().Stack().Err(err).Msg("panic recovered")
    - 1 пропуск (остаток 2): `skip_with_remaining_2`
    - 2 пропуска (остаток 1): `skip_with_remaining_1`
    - 3 пропуска (остаток 0): `skip_last`
+   - Эти сообщения постоянные — НЕ удаляются автоматически (в отличие от `already_*` и `skip_no_remaining`)
 
 ### 5.5 `internal/delivery/bot/handler/message.go`
 
@@ -977,9 +978,9 @@ Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
 
 `Finalize(ctx, game, task, responses) error`:
 1. Собрать голоса: `map[questionID]map[telegramUserID]int`
-2. Для каждого вопроса: победитель = игрок с max голосами
-3. Сохранить в `task_results.ResultData`: `{"q1": telegramUserID, "q2": telegramUserID, ...}`
-4. Сформировать итоговый текст: для каждого вопроса — `вопрос → @упоминание победителя`
+2. Для каждого вопроса: победители = все игроки с max голосами (при ничьей — несколько)
+3. Сохранить в `task_results.ResultData`: `{"q1": [telegramUserID, ...], "q2": [telegramUserID, ...]}`
+4. Сформировать итоговый текст: для каждого вопроса — `вопрос → @упоминание1, @упоминание2` (все победители)
 5. Отправить `task.Summary.HeaderText` + итоговый текст
 
 ### 8.3 Обновление `callback.go`
@@ -1003,8 +1004,8 @@ Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
 
 **`usecase/task/finalize/who_is_who_test.go`**
 - Тест: 3 игрока выбрали одного и того же для q1 → он победитель
-- Тест: ничья → побеждает первый по order в YAML
-- Тест: `task_result` содержит корректный JSON с `telegramUserID` победителей
+- Тест: ничья → тегаются все лидеры, игроки без голосов не тегаются
+- Тест: `task_result` содержит корректный JSON со списками `telegramUserID` победителей
 - Тест: итоговое сообщение содержит `header_text` и упоминания победителей
 
 ### Обновление `docs/architecture.md`
@@ -1074,6 +1075,8 @@ Callback data каждой кнопки: `task02:choice:{categoryID}:{optionID}`
 ---
 
 ## Этап 10 — Сабтаска meme_voiceover (Таска 10b) ✅
+
+> ⚠️ **Удалено (Bug #5):** подтаска meme_voiceover и весь связанный код убраны. Раздел ниже сохранён только как история.
 
 **Цель:** последовательная озвучка мемов с эксклюзивным локом.
 

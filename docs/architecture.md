@@ -92,6 +92,7 @@ log.Info().Msg("game created")
 007_create_task_results.{up,down}.sql
 008_create_notifications_log.{up,down}.sql
 009_create_referral_clicks.{up,down}.sql
+010_add_poll_message_id.{up,down}.sql
 ```
 
 `make migrate-up` применяет все непримененные миграции.
@@ -335,6 +336,8 @@ type TaskPublisher interface {
  task_response: skipped   (player state не меняется)
 ```
 
+Сообщения `skip_with_remaining_2`, `skip_with_remaining_1` и `skip_last` остаются в чате постоянно (автоудаление не применяется). Автоудаляются через `DeleteMessageDelay` только «ошибочные» ответы: `already_answered`, `already_skipped`, `skip_no_remaining`.
+
 ### Схема состояний игрока
 
 ```
@@ -425,13 +428,24 @@ type TaskFinalizer interface {
 | `collage`            | `CollageFinalizer`       | 7    |
 | `openai_collage`     | `OpenAICollageFinalizer` | 11   |
 
+### WhoIsWhoFinalizer: подсчёт победителей (таска 4)
+
+Ответы игроков хранятся в `task_responses.response_data` как `{"q1": <telegramUserID>, "q2": ...}`. Финализатор считает голоса по каждому вопросу отдельно:
+
+1. Для каждого игрока игры берётся число голосов за него по вопросу; игроки с 0 голосов пропускаются.
+2. Победители — **все** игроки с максимальным числом голосов. При ничьей побеждают несколько игроков, один лидер не выбирается. Порядок победителей совпадает с порядком игроков в игре.
+3. В итоговом сообщении победители вопроса тегаются через запятую: `<текст вопроса> @user1, @user3`. Вопрос без единого голоса в сообщение не попадает.
+4. В `task_results.result_data` сохраняются списки: `{"q1": [111, 333], "q2": [222]}`.
+
+Раньше при ничьей выбирался только первый игрок в списке, то есть всегда админ игры (он создаётся первым); это исправлено (Bug #4).
+
 ### Завершение игры (`finishGame`)
 
 Вызывается роутером после финализации последней таски (`TaskByOrder(task.Order+1) == nil`):
 1. `gameRepo.SetFinished(game.ID)`
 2. Отправить `game.final_message_1` (GIF `game/final.gif`)
 3. `time.Sleep(TaskInfoInterval)`
-4. Отправить `game.final_message_2`
+4. Отправить `game.final_message_2` с inline URL-кнопкой (текст и ссылка — `final_message_2_button_text` / `final_message_2_button_url` в `content/game.yml`; если любое из полей пусто, сообщение уходит без кнопки). Сообщение отправляется с `tele.NoPreview` — превью ссылки на опрос отключено (Bug #9), только для этого сообщения
 
 ### Scheduler (обновлён в Stage 6)
 
@@ -459,6 +473,8 @@ SendReminders():
             Create NotificationLog
 ```
 
+Для таски типа `admin_only` (task_12) напоминание получает только админ игры (`player.TelegramUserID == game.AdminUserID`), если он ещё не ответил: вместо случайного `reminder` отправляется `task12_reminder` с тегом админа. Остальные игроки напоминаний по этой таске не получают.
+
 Ключевая деталь: проверка `ReminderDelay` выполняется по `game.CurrentTaskPublishedAt`, а **не** по времени присоединения игрока или его последнего ответа. Один игрок получает максимум одно напоминание на таску (гарантируется через `notifications_log`).
 
 ---
@@ -485,8 +501,11 @@ scheduler → task/publish (poll_then_task)
          ├─ SetActivePollID(game.ID, "") — очищаем
          │
          └─ publishFollowUp:
-              ├─ result_type="question_answer" → sends PreparedText + task keyboard
-              └─ result_type="meme_voiceover"  → stub (полная реализация в Stage 10)
+              └─ result_type="question_answer" → sends PreparedText + task keyboard
+
+В голосовании два варианта («Abracadabra» и «Smelly Cat»). Подтаска «Озвучити меми» (`meme_voiceover`)
+удалена (Bug #5): обработчик, клавиатура, роут `task10_meme_request` и суффикс `:meme` в `player_states.task_id`
+больше не существуют. Любой другой `result_type` в `publishFollowUp` возвращает ошибку.
 ```
 
 ### Хранение `active_poll_id`

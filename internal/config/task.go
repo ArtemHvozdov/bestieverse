@@ -96,10 +96,8 @@ type SubtaskPoll struct {
 type PollOption struct {
 	ID             string   `yaml:"id"`
 	Label          string   `yaml:"label"`
-	ResultType     string   `yaml:"result_type"` // question_answer | meme_voiceover
+	ResultType     string   `yaml:"result_type"` // question_answer
 	PreparedText   string   `yaml:"prepared_text"`
-	MemeFiles      []string `yaml:"meme_files"`
-	MemesPerPlayer int      `yaml:"memes_per_player"` // how many memes each player voices (default 5)
 }
 
 // TaskMessage is one message to send when publishing task_12.
@@ -120,4 +118,7 @@ type GameMessages struct {
 	StartMessage2 string `yaml:"start_game_message_2"`
 	FinalMessage1 string `yaml:"final_message_1"`
 	FinalMessage2 string `yaml:"final_message_2"`
+
+	FinalMessage2ButtonText string `yaml:"final_message_2_button_text"`
+	FinalMessage2ButtonURL  string `yaml:"final_message_2_button_url"`
 }

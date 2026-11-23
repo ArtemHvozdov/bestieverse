@@ -275,9 +275,13 @@ func TestWhoIsWhoHandlePlayerChoice_LastQuestion_FinalizesAndSetsIdle(t *testing
 
 	err := h.HandlePlayerChoice(ctx, game, player, task, "q2", 55, prevMsg)
 	require.NoError(t, err)
-	// Previous message deleted, follow-up sent.
-	assert.Equal(t, 1, sender.deleted)
+	// Previous message deleted, follow-up sent and auto-deleted after DeleteMessageDelay.
 	assert.Equal(t, 1, len(sender.sent))
+	assert.Eventually(t, func() bool {
+		sender.mu.Lock()
+		defer sender.mu.Unlock()
+		return sender.deleted == 2
+	}, time.Second, time.Millisecond)
 }
 
 func TestWhoIsWhoHandlePlayerChoice_LockHeldByOther_EarlyExit(t *testing.T) {

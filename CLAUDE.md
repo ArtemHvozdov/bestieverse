@@ -75,7 +75,6 @@ Telegram-бот для проведения групповой игры в Teleg
 │   │   │       ├── voting_collage.go  ← таска 2: голосование + коллаж
 │   │   │       ├── who_is_who.go      ← таска 4: кто из нас
 │   │   │       ├── poll.go            ← таска 10: Telegram Poll
-│   │   │       ├── meme_voiceover.go  ← таска 10b: озвучка мемов
 │   │   │       └── admin_only.go      ← таска 12: только админ отвечает
 │   │   ├── player/
 │   │   │   └── check_membership.go   ← проверка: в игре ли юзер
@@ -375,7 +374,6 @@ services:
 | `voting_collage` | Сабтаска: выбор варианта → коллаж | 2 |
 | `who_is_who` | Сабтаска: выбор участника → итог | 4 |
 | `poll_then_task` | Telegram Poll → результат определяет таску | 10 |
-| `meme_voiceover` | Сабтаска таски 10: 5 мемов → тексты | 10b |
 | `admin_only` | Только админ отвечает → OpenAI коллаж | 12 |
 
 ---
