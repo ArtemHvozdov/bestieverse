@@ -5,13 +5,17 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bot ./cmd/bot
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /app/bot ./cmd/bot
 
-FROM alpine:latest
+FROM alpine:3.24
+RUN addgroup -S -g 10001 app \
+ && adduser -S -D -H -u 10001 -G app app
 
 WORKDIR /app
 COPY --from=builder /app/bot .
 COPY content/ ./content/
 COPY assets/ ./assets/
+RUN mkdir -p /app/data && chown app:app /app/data
 
+USER app
 CMD ["./bot"]

@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+.env.*
+
+data/
+*.log
+coverage.*
+
+docker-compose*.yml
+Makefile
+*.md
+.github/
+_test/
